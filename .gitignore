@@ -1,0 +1,39 @@
+# Document files (your report)
+*.docx
+*.doc
+
+# Build directories
+build/
+bin/
+obj/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.log
+*.bak
+*.pid
+
+# Compiler outputs
+*.o
+*.exe
+*.out
+*.a
+*.so
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Local config (if any)
+config/local_*.json
