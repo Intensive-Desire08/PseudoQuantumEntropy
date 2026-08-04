@@ -7,6 +7,12 @@ build/
 bin/
 obj/
 
+# Generated headers
+build_config.h
+
+# vcpkg artifacts (optional - depends on your approach)
+# vcpkg_installed/
+
 # IDE
 .vscode/
 .idea/

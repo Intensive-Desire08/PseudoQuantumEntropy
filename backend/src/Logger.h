@@ -188,10 +188,13 @@ private:
      */
     Logger();
 
+public:
     /**
-     * @brief Private destructor
+     * @brief Destructor
      */
     ~Logger();
+
+private:
 
     /**
      * @brief Format a log message

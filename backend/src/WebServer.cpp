@@ -1,12 +1,11 @@
 #include "WebServer.h"
 #include "EntropyCollector.h"
-#include "Logger.h"
-#include "crypto/KeyGenerator.h"
-#include "crypto/Encryptor.h"
-#include "crypto/Hasher.h"
+#include "Crypto/KeyGenerator.h"
+#include "Crypto/Encryptor.h"
+#include "Crypto/Hasher.h"
 
 #include <httplib.h>
-#include <nlohmann/json.hpp>
+#include "json.hpp"
 #include <fstream>
 #include <iostream>
 #include <sstream>
@@ -20,6 +19,11 @@ static const std::string BASE64_CHARS =
     "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
     "abcdefghijklmnopqrstuvwxyz"
     "0123456789+/";
+
+static bool endsWith(const std::string& value, const std::string& suffix) {
+    return value.size() >= suffix.size() &&
+           value.compare(value.size() - suffix.size(), suffix.size(), suffix) == 0;
+}
 
 WebServer::WebServer(
     EntropyCollector& entropyCollector,
@@ -50,7 +54,7 @@ WebServer::~WebServer() {
 
 bool WebServer::start() {
     if (running) {
-        LOG_WARN("WebServer already running");
+        std::cout << "[WebServer] WebServer already running" << std::endl;
         return true;
     }
 
@@ -70,16 +74,16 @@ bool WebServer::start() {
         // Start server in background thread
         running = true;
         serverThread = std::thread([this]() {
-            LOG_INFO("WebServer starting on " + host + ":" + std::to_string(port));
-            LOG_INFO("Serving frontend from: " + frontendPath);
+            std::cout << "[WebServer] Starting on " << host << ":" << port << std::endl;
+            std::cout << "[WebServer] Serving frontend from: " << frontendPath << std::endl;
             
             try {
                 if (!server->listen(host.c_str(), port)) {
-                    LOG_ERROR("Failed to start WebServer on port " + std::to_string(port));
+                    std::cerr << "[WebServer] Failed to start on port " << port << std::endl;
                     running = false;
                 }
             } catch (const std::exception& e) {
-                LOG_ERROR("WebServer error: " + std::string(e.what()));
+                std::cerr << "[WebServer] Error: " << e.what() << std::endl;
                 running = false;
             }
         });
@@ -88,15 +92,15 @@ bool WebServer::start() {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
         
         if (!running) {
-            LOG_ERROR("WebServer failed to start");
+            std::cerr << "[WebServer] Failed to start" << std::endl;
             return false;
         }
         
-        LOG_INFO("WebServer started successfully on port " + std::to_string(port));
+        std::cout << "[WebServer] Started successfully on port " << port << std::endl;
         return true;
         
     } catch (const std::exception& e) {
-        LOG_ERROR("WebServer start error: " + std::string(e.what()));
+        std::cerr << "[WebServer] Start error: " << e.what() << std::endl;
         return false;
     }
 }
@@ -106,7 +110,7 @@ void WebServer::stop() {
         return;
     }
     
-    LOG_INFO("Stopping WebServer...");
+    std::cout << "[WebServer] Stopping..." << std::endl;
     running = false;
     
     if (server) {
@@ -118,7 +122,7 @@ void WebServer::stop() {
     }
     
     server.reset();
-    LOG_INFO("WebServer stopped");
+    std::cout << "[WebServer] Stopped" << std::endl;
 }
 
 bool WebServer::isRunning() const {
@@ -131,7 +135,7 @@ unsigned int WebServer::getPort() const {
 
 void WebServer::setPort(unsigned int port) {
     if (running) {
-        LOG_WARN("Cannot change port while server is running");
+        std::cerr << "[WebServer] Cannot change port while server is running" << std::endl;
         return;
     }
     this->port = port;
@@ -143,7 +147,7 @@ std::string WebServer::getFrontendPath() const {
 
 void WebServer::setFrontendPath(const std::string& path) {
     if (running) {
-        LOG_WARN("Cannot change frontend path while server is running");
+        std::cerr << "[WebServer] Cannot change frontend path while server is running" << std::endl;
         return;
     }
     this->frontendPath = path;
@@ -252,14 +256,14 @@ void WebServer::serveStaticFile(const httplib::Request& req, httplib::Response& 
     
     // Determine content type
     std::string contentType = "application/octet-stream";
-    if (path.ends_with(".html")) contentType = "text/html";
-    else if (path.ends_with(".css")) contentType = "text/css";
-    else if (path.ends_with(".js")) contentType = "application/javascript";
-    else if (path.ends_with(".json")) contentType = "application/json";
-    else if (path.ends_with(".png")) contentType = "image/png";
-    else if (path.ends_with(".jpg") || path.ends_with(".jpeg")) contentType = "image/jpeg";
-    else if (path.ends_with(".svg")) contentType = "image/svg+xml";
-    else if (path.ends_with(".ico")) contentType = "image/x-icon";
+    if (endsWith(path, ".html")) contentType = "text/html";
+    else if (endsWith(path, ".css")) contentType = "text/css";
+    else if (endsWith(path, ".js")) contentType = "application/javascript";
+    else if (endsWith(path, ".json")) contentType = "application/json";
+    else if (endsWith(path, ".png")) contentType = "image/png";
+    else if (endsWith(path, ".jpg") || endsWith(path, ".jpeg")) contentType = "image/jpeg";
+    else if (endsWith(path, ".svg")) contentType = "image/svg+xml";
+    else if (endsWith(path, ".ico")) contentType = "image/x-icon";
     
     res.set_content(content, contentType);
     logRequest("GET", req.path, 200);
@@ -276,24 +280,24 @@ void WebServer::handleStatus(const httplib::Request& req, httplib::Response& res
     ).count();
     
     // Entropy collector status
-    response["entropy"] = {
-        {"initialized", entropyCollector.isInitialized()},
-        {"source", entropyCollector.getSourceName()},
-        {"source_type", entropyCollector.getSourceType()},
-        {"available_bytes", entropyCollector.getAvailableBytes()},
-        {"total_generated", entropyCollector.getTotalBytesGenerated()},
-        {"pool_size", entropyCollector.getPoolSize()},
-        {"hardware_available", entropyCollector.isHardwareAvailable()},
-        {"openssl_available", entropyCollector.isOpenSSLAvailable()}
-    };
+    nlohmann::json entropyStatus;
+    entropyStatus["initialized"] = entropyCollector.isInitialized();
+    entropyStatus["source"] = entropyCollector.getSourceName();
+    entropyStatus["source_type"] = entropyCollector.getSourceType();
+    entropyStatus["available_bytes"] = entropyCollector.getAvailableBytes();
+    entropyStatus["total_generated"] = entropyCollector.getTotalBytesGenerated();
+    entropyStatus["pool_size"] = entropyCollector.getPoolSize();
+    entropyStatus["hardware_available"] = entropyCollector.isHardwareAvailable();
+    entropyStatus["openssl_available"] = entropyCollector.isOpenSSLAvailable();
+    response["entropy"] = entropyStatus;
     
     // Server status
-    response["server"] = {
-        {"running", running},
-        {"port", port},
-        {"active_connections", activeConnections.load()},
-        {"total_requests", totalRequests.load()}
-    };
+    nlohmann::json serverStatus;
+    serverStatus["running"] = running;
+    serverStatus["port"] = port;
+    serverStatus["active_connections"] = activeConnections.load();
+    serverStatus["total_requests"] = totalRequests.load();
+    response["server"] = serverStatus;
     
     res.set_content(response.dump(2), "application/json");
 }
@@ -440,9 +444,9 @@ void WebServer::handleEncrypt(const httplib::Request& req, httplib::Response& re
         
         nlohmann::json response;
         response["status"] = "ok";
-        response["ciphertext"] = hexEncode(result);
+        response["ciphertext"] = hexEncode(result.ciphertext);
         response["iv"] = hexEncode(iv);
-        response["tag"] = hexEncode(result); // For GCM, tag is included
+        response["tag"] = hexEncode(result.tag);
         response["key_size"] = key.size() * 8;
         
         res.set_content(response.dump(2), "application/json");
@@ -467,15 +471,16 @@ void WebServer::handleDecrypt(const httplib::Request& req, httplib::Response& re
         }
         
         // Get required parameters
-        if (!request.contains("ciphertext") || !request.contains("key") || !request.contains("iv")) {
+        if (!request.contains("ciphertext") || !request.contains("key") || !request.contains("iv") || !request.contains("tag")) {
             res.status = 400;
-            res.set_content(errorResponse(400, "Missing required fields: ciphertext, key, iv"), "application/json");
+            res.set_content(errorResponse(400, "Missing required fields: ciphertext, key, iv, tag"), "application/json");
             return;
         }
         
         std::vector<uint8_t> ciphertext = hexDecode(request["ciphertext"].get<std::string>());
         std::vector<uint8_t> key = hexDecode(request["key"].get<std::string>());
         std::vector<uint8_t> iv = hexDecode(request["iv"].get<std::string>());
+        std::vector<uint8_t> tag = hexDecode(request["tag"].get<std::string>());
         
         // Validate key size
         if (key.size() != 16 && key.size() != 24 && key.size() != 32) {
@@ -485,7 +490,7 @@ void WebServer::handleDecrypt(const httplib::Request& req, httplib::Response& re
         }
         
         // Decrypt
-        std::vector<uint8_t> plaintext = Encryptor::decrypt(ciphertext, key, iv);
+        std::vector<uint8_t> plaintext = Encryptor::decrypt(ciphertext, key, iv, tag);
         
         nlohmann::json response;
         response["status"] = "ok";
@@ -667,7 +672,7 @@ void WebServer::handleReseed(const httplib::Request& req, httplib::Response& res
 
 void WebServer::logRequest(const std::string& method, const std::string& path, int status) {
     totalRequests++;
-    LOG_DEBUG("HTTP " + method + " " + path + " -> " + std::to_string(status));
+    std::cout << "[WebServer] HTTP " << method << " " << path << " -> " << status << std::endl;
 }
 
 std::string WebServer::errorResponse(int code, const std::string& message) {

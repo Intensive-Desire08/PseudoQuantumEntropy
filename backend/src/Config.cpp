@@ -1,5 +1,5 @@
 #include "Config.h"
-#include "nlohmann/json.hpp"
+#include "json.hpp"
 #include <fstream>
 #include <iostream>
 #include <regex>
@@ -79,8 +79,8 @@ bool Config::save(const std::string& filename) const {
         // Unflatten the configuration
         nlohmann::json unflattened = nlohmann::json::object();
         for (auto it = config.begin(); it != config.end(); ++it) {
-            const std::string& key = it->first;
-            const nlohmann::json& value = it->second;
+            const std::string key = it.key();
+            const nlohmann::json& value = it.value();
 
             // Parse key into path segments
             std::vector<std::string> segments;
@@ -132,8 +132,8 @@ std::string Config::saveToString() const {
         // Unflatten the configuration
         nlohmann::json unflattened = nlohmann::json::object();
         for (auto it = config.begin(); it != config.end(); ++it) {
-            const std::string& key = it->first;
-            const nlohmann::json& value = it->second;
+            const std::string key = it.key();
+            const nlohmann::json& value = it.value();
 
             // Parse key into path segments
             std::vector<std::string> segments;

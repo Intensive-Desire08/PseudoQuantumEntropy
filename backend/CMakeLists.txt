@@ -71,6 +71,11 @@ find_package(Boost REQUIRED COMPONENTS system)
 find_package(OpenSSL REQUIRED)
 find_package(nlohmann_json REQUIRED)
 
+# Optional: Check for cpp-httplib (header-only, no find_package needed)
+# It will be included directly from the include/ directory
+# Optional: Check for cpp-httplib (header-only, no find_package needed)
+# It will be included directly from the include/ directory
+
 # ============================================================================
 # Include Directories
 # ============================================================================
@@ -200,6 +205,11 @@ if(WIN32)
     )
 endif()
 
+# Enable OpenSSL support for cpp-httplib
+target_compile_definitions(PseudoQuantumEntropy PRIVATE
+    CPPHTTPLIB_OPENSSL_SUPPORT
+)
+
 if(UNIX)
     target_compile_definitions(PseudoQuantumEntropy PRIVATE
         _GNU_SOURCE
@@ -237,7 +247,7 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release")
 endif()
 
 # ============================================================================
-# Tests (Optional)
+# Tests (Optional - Add later)
 # ============================================================================
 
 enable_testing()
@@ -278,7 +288,5 @@ message(STATUS "Dependencies:")
 message(STATUS "  Boost:           ${Boost_INCLUDE_DIRS}")
 message(STATUS "  OpenSSL:         ${OPENSSL_INCLUDE_DIR}")
 message(STATUS "  nlohmann_json:   ${nlohmann_json_INCLUDE_DIR}")
-message(STATUS "")
-message(STATUS "Output directory:  ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
-message(STATUS "========================================")
+message(STATUS "  cpp-httplib:     Header-only (include/httplib.h)")
 message(STATUS "")

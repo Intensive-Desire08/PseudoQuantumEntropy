@@ -7,7 +7,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <stdexcept>
-#include "nlohmann/json.hpp"
+#include "json.hpp"
 
 /**
  * @brief Configuration manager for the PseudoQuantum Entropy Service

@@ -7,6 +7,10 @@
 #include <mutex>
 #include <functional>
 #include <unordered_map>
+#include <vector>
+
+#include "httplib.h"
+#include "json.hpp"
 
 // Forward declarations
 class EntropyCollector;
