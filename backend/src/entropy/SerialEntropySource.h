@@ -1,14 +1,20 @@
 #pragma once
 
 #include "IEntropySource.h"
-#include <boost/asio.hpp>
-#include <boost/asio/serial_port.hpp>
 #include <atomic>
 #include <mutex>
 #include <chrono>
 #include <vector>
 #include <cstdint>
 #include <string>
+
+#if __has_include(<boost/asio.hpp>)
+    #include <boost/asio.hpp>
+    #include <boost/asio/serial_port.hpp>
+    #define PQT_HAS_BOOST_ASIO 1
+#else
+    #define PQT_HAS_BOOST_ASIO 0
+#endif
 
 /**
  * @brief Hardware entropy source using ESP32 dual photodiode TRNG
@@ -201,8 +207,10 @@ private:
     unsigned int timeoutMs;
 
     // Serial communication
+#if PQT_HAS_BOOST_ASIO
     boost::asio::io_context ioContext;
     boost::asio::serial_port serialPort;
+#endif
 
     // State management
     std::atomic<bool> initialized;
@@ -213,8 +221,10 @@ private:
     mutable std::mutex mutex;
 
     // Buffer for flushing
+#if PQT_HAS_BOOST_ASIO
     std::vector<char> discardBuffer;
     boost::system::error_code errorCode;
+#endif
 
     // Constants
     static constexpr uint8_t SYNC_MARKER = 0xAA;

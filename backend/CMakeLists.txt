@@ -14,7 +14,6 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # ============================================================================
 
 if(MSVC)
-    # Visual Studio/MSVC warnings
     add_compile_options(
         /W4
         /WX-
@@ -22,14 +21,12 @@ if(MSVC)
         /Zc:__cplusplus
         /utf-8
     )
-    # Disable specific warnings we don't care about
     add_compile_options(
-        /wd4251  # 'identifier' : class 'type' needs to have dll-interface
-        /wd4275  # non dll-interface class 'type' used as base for dll-interface class 'type'
-        /wd4996  # 'function': was declared deprecated
+        /wd4251
+        /wd4275
+        /wd4996
     )
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-    # GCC/Clang warnings
     add_compile_options(
         -Wall
         -Wextra
@@ -71,11 +68,6 @@ find_package(Boost REQUIRED COMPONENTS system)
 find_package(OpenSSL REQUIRED)
 find_package(nlohmann_json REQUIRED)
 
-# Optional: Check for cpp-httplib (header-only, no find_package needed)
-# It will be included directly from the include/ directory
-# Optional: Check for cpp-httplib (header-only, no find_package needed)
-# It will be included directly from the include/ directory
-
 # ============================================================================
 # Include Directories
 # ============================================================================
@@ -86,6 +78,7 @@ include_directories(
     ${Boost_INCLUDE_DIRS}
     ${OPENSSL_INCLUDE_DIR}
     ${CMAKE_CURRENT_BINARY_DIR}
+    ${CMAKE_CURRENT_BINARY_DIR}/include
 )
 
 # ============================================================================
@@ -93,30 +86,17 @@ include_directories(
 # ============================================================================
 
 set(SOURCES
-    # Main entry point
     src/main.cpp
-    
-    # Core infrastructure
     src/Logger.cpp
     src/Config.cpp
-    
-    # Entropy system
     src/EntropyCollector.cpp
     src/EntropyPool.cpp
-    
-    # Entropy sources
+    src/WebServer.cpp
     src/entropy/SerialEntropySource.cpp
     src/entropy/OpenSSLEntropySource.cpp
-    
-    # Cryptographic modules
     src/crypto/KeyGenerator.cpp
-    src/crypto/Encryptor.cpp
+    src/crypto/Encrypter.cpp
     src/crypto/Hasher.cpp
-    
-    # Web server
-    src/WebServer.cpp
-    
-    # Utilities
     src/utilities/Helpers.cpp
 )
 
@@ -125,28 +105,17 @@ set(SOURCES
 # ============================================================================
 
 set(HEADERS
-    # Core infrastructure
     src/Logger.h
     src/Config.h
-    
-    # Entropy system
     src/EntropyCollector.h
     src/EntropyPool.h
-    
-    # Entropy sources
+    src/WebServer.h
     src/entropy/IEntropySource.h
     src/entropy/SerialEntropySource.h
     src/entropy/OpenSSLEntropySource.h
-    
-    # Cryptographic modules
     src/crypto/KeyGenerator.h
     src/crypto/Encryptor.h
     src/crypto/Hasher.h
-    
-    # Web server
-    src/WebServer.h
-    
-    # Utilities
     src/utilities/Helpers.h
 )
 
@@ -169,19 +138,19 @@ target_link_libraries(PseudoQuantumEntropy
 # Windows specific libraries
 if(WIN32)
     target_link_libraries(PseudoQuantumEntropy
-        ws2_32      # Windows Sockets (for Boost.Asio)
-        crypt32     # Windows Crypto API (for OpenSSL)
-        advapi32    # Advanced Windows API
-        user32      # Windows User API
-        shell32     # Windows Shell API
+        ws2_32
+        crypt32
+        advapi32
+        user32
+        shell32
     )
 endif()
 
 # Linux specific libraries
 if(UNIX AND NOT APPLE)
     target_link_libraries(PseudoQuantumEntropy
-        pthread     # POSIX threads
-        dl          # Dynamic linking
+        pthread
+        dl
     )
 endif()
 
@@ -220,7 +189,6 @@ endif()
 # Properties
 # ============================================================================
 
-# Set the output name
 set_target_properties(PseudoQuantumEntropy PROPERTIES
     OUTPUT_NAME "PseudoQuantumEntropy"
     VERSION ${PROJECT_VERSION}
@@ -260,15 +228,11 @@ endif()
 # Build Information
 # ============================================================================
 
-# Generate a header with build information
 configure_file(
     ${CMAKE_CURRENT_SOURCE_DIR}/include/build_config.h.in
     ${CMAKE_CURRENT_BINARY_DIR}/include/build_config.h
     @ONLY
 )
-
-# Add the binary directory to include path for generated headers
-include_directories(${CMAKE_CURRENT_BINARY_DIR}/include)
 
 # ============================================================================
 # Print Build Configuration Summary
@@ -289,4 +253,7 @@ message(STATUS "  Boost:           ${Boost_INCLUDE_DIRS}")
 message(STATUS "  OpenSSL:         ${OPENSSL_INCLUDE_DIR}")
 message(STATUS "  nlohmann_json:   ${nlohmann_json_INCLUDE_DIR}")
 message(STATUS "  cpp-httplib:     Header-only (include/httplib.h)")
+message(STATUS "")
+message(STATUS "Output directory:  ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
+message(STATUS "========================================")
 message(STATUS "")

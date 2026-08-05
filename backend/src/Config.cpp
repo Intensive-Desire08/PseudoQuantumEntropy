@@ -17,8 +17,6 @@ Config::Config()
 }
 
 bool Config::load(const std::string& filename) {
-    std::lock_guard<std::mutex> lock(mutex);
-    
     try {
         std::ifstream file(filename);
         if (!file.is_open()) {
@@ -30,14 +28,17 @@ bool Config::load(const std::string& filename) {
         file >> jsonData;
         file.close();
         
-        // Flatten the JSON
-        config = nlohmann::json::object();
-        flattenJson("", jsonData);
-        
-        configFilePath = filename;
-        loaded = true;
-        
-        // Validate after load
+        {
+            std::lock_guard<std::mutex> lock(mutex);
+            // Flatten the JSON
+            config = nlohmann::json::object();
+            flattenJson("", jsonData);
+            
+            configFilePath = filename;
+            loaded = true;
+        }
+
+        // Validate after load, outside the mutex to avoid re-entrant locking
         validate();
         
         return true;
@@ -49,19 +50,20 @@ bool Config::load(const std::string& filename) {
 }
 
 bool Config::loadFromString(const std::string& jsonString) {
-    std::lock_guard<std::mutex> lock(mutex);
-    
     try {
         nlohmann::json jsonData = nlohmann::json::parse(jsonString);
         
-        // Flatten the JSON
-        config = nlohmann::json::object();
-        flattenJson("", jsonData);
-        
-        loaded = true;
-        configFilePath = "";
-        
-        // Validate after load
+        {
+            std::lock_guard<std::mutex> lock(mutex);
+            // Flatten the JSON
+            config = nlohmann::json::object();
+            flattenJson("", jsonData);
+            
+            loaded = true;
+            configFilePath = "";
+        }
+
+        // Validate after load, outside the mutex to avoid re-entrant locking
         validate();
         
         return true;

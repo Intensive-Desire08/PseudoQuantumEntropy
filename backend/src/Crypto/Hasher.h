@@ -4,6 +4,8 @@
 #include <cstdint>
 #include <string>
 
+#include <openssl/evp.h>
+
 /**
  * @brief Cryptographic hashing utilities
  * 

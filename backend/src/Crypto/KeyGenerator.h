@@ -4,6 +4,9 @@
 #include <cstdint>
 #include <string>
 #include <memory>
+#include <mutex>
+
+#include "../entropy/IEntropySource.h"
 
 /**
  * @brief Cryptographic key generation utilities

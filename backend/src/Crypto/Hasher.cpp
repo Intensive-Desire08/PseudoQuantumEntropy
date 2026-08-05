@@ -43,7 +43,7 @@ std::vector<uint8_t> Hasher::hmacSHA256(
     unsigned int resultLen = 0;
     
     if (HMAC(EVP_sha256(), key.data(), static_cast<int>(key.size()),
-             data.data(), static_cast<int>(data.size()),
+             data.data(), data.size(),
              result.data(), &resultLen) == nullptr) {
         throw std::runtime_error("HMAC-SHA256 computation failed");
     }
@@ -84,9 +84,9 @@ std::vector<uint8_t> Hasher::fromHex(const std::string& hex) {
         char low = hex[i + 1];
         
         auto hexChar = [](char c) -> uint8_t {
-            if (c >= '0' && c <= '9') return c - '0';
-            if (c >= 'a' && c <= 'f') return c - 'a' + 10;
-            if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+            if (c >= '0' && c <= '9') return static_cast<uint8_t>(c - '0');
+            if (c >= 'a' && c <= 'f') return static_cast<uint8_t>(c - 'a' + 10);
+            if (c >= 'A' && c <= 'F') return static_cast<uint8_t>(c - 'A' + 10);
             throw std::runtime_error("Invalid hex character");
         };
         

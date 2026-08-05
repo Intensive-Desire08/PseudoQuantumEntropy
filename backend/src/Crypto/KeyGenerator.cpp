@@ -49,7 +49,7 @@ std::vector<uint8_t> KeyGenerator::deriveKey(
         static_cast<int>(password.length()),
         salt.data(),
         static_cast<int>(salt.size()),
-        iterations,
+        static_cast<int>(iterations),
         EVP_sha256(),
         static_cast<int>(keySize),
         key.data()

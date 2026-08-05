@@ -1,8 +1,8 @@
 #include "WebServer.h"
 #include "EntropyCollector.h"
-#include "Crypto/KeyGenerator.h"
-#include "Crypto/Encryptor.h"
-#include "Crypto/Hasher.h"
+#include "crypto/KeyGenerator.h"
+#include "crypto/Encryptor.h"
+#include "crypto/Hasher.h"
 
 #include <httplib.h>
 #include "json.hpp"
@@ -26,12 +26,12 @@ static bool endsWith(const std::string& value, const std::string& suffix) {
 }
 
 WebServer::WebServer(
-    EntropyCollector& entropyCollector,
-    unsigned int port,
-    const std::string& frontendPath)
-    : entropyCollector(entropyCollector)
-    , port(port)
-    , frontendPath(frontendPath)
+    EntropyCollector& entropyCollectorRef,
+    unsigned int portValue,
+    const std::string& frontendPathValue)
+    : entropyCollector(entropyCollectorRef)
+    , port(portValue)
+    , frontendPath(frontendPathValue)
     , host("0.0.0.0")
     , server(nullptr)
     , running(false)
@@ -39,9 +39,9 @@ WebServer::WebServer(
     , totalRequests(0) {
     
     // Ensure frontend path is absolute or relative to executable
-    if (!std::filesystem::exists(frontendPath)) {
+    if (!std::filesystem::exists(frontendPathValue)) {
         // Try to find it relative to current directory
-        std::string altPath = "../" + frontendPath;
+        std::string altPath = "../" + frontendPathValue;
         if (std::filesystem::exists(altPath)) {
             this->frontendPath = altPath;
         }
@@ -78,7 +78,7 @@ bool WebServer::start() {
             std::cout << "[WebServer] Serving frontend from: " << frontendPath << std::endl;
             
             try {
-                if (!server->listen(host.c_str(), port)) {
+                        if (!server->listen(host.c_str(), static_cast<int>(port))) {
                     std::cerr << "[WebServer] Failed to start on port " << port << std::endl;
                     running = false;
                 }
@@ -93,6 +93,10 @@ bool WebServer::start() {
         
         if (!running) {
             std::cerr << "[WebServer] Failed to start" << std::endl;
+            if (serverThread.joinable()) {
+                serverThread.join();
+            }
+            server.reset();
             return false;
         }
         
@@ -101,6 +105,10 @@ bool WebServer::start() {
         
     } catch (const std::exception& e) {
         std::cerr << "[WebServer] Start error: " << e.what() << std::endl;
+        if (serverThread.joinable()) {
+            serverThread.join();
+        }
+        server.reset();
         return false;
     }
 }
@@ -133,12 +141,12 @@ unsigned int WebServer::getPort() const {
     return port;
 }
 
-void WebServer::setPort(unsigned int port) {
+void WebServer::setPort(unsigned int newPort) {
     if (running) {
         std::cerr << "[WebServer] Cannot change port while server is running" << std::endl;
         return;
     }
-    this->port = port;
+    this->port = newPort;
 }
 
 std::string WebServer::getFrontendPath() const {
@@ -293,7 +301,7 @@ void WebServer::handleStatus(const httplib::Request& req, httplib::Response& res
     
     // Server status
     nlohmann::json serverStatus;
-    serverStatus["running"] = running;
+    serverStatus["running"] = running.load();
     serverStatus["port"] = port;
     serverStatus["active_connections"] = activeConnections.load();
     serverStatus["total_requests"] = totalRequests.load();
@@ -364,7 +372,7 @@ void WebServer::handleKeyGen(const httplib::Request& req, httplib::Response& res
         }
         
         // Get parameters
-        size_t keySize = request.value("key_size", 32);
+        size_t keySize = static_cast<size_t>(request.value("key_size", 32u));
         std::string password = request.value("password", "");
         bool deriveKey = !password.empty();
         
@@ -373,8 +381,8 @@ void WebServer::handleKeyGen(const httplib::Request& req, httplib::Response& res
         
         if (deriveKey) {
             // Derive key from password
-            size_t saltSize = request.value("salt_size", 32);
-            int iterations = request.value("iterations", 100000);
+            size_t saltSize = static_cast<size_t>(request.value("salt_size", 32u));
+            unsigned int iterations = request.value("iterations", 100000u);
             
             std::vector<uint8_t> salt = KeyGenerator::generateSalt(saltSize);
             std::vector<uint8_t> key = KeyGenerator::deriveKey(password, salt, keySize);
@@ -519,7 +527,7 @@ void WebServer::handleTest(const httplib::Request& req, httplib::Response& res) 
             return;
         }
         
-        size_t numBytes = request.value("bytes", 1024);
+        size_t numBytes = static_cast<size_t>(request.value("bytes", 1024u));
         std::string mode = request.value("mode", "quick");
         
         if (numBytes > MAX_ENTROPY_REQUEST) {
@@ -561,7 +569,7 @@ void WebServer::handleTest(const httplib::Request& req, httplib::Response& res) 
                 if (byte & (1 << i)) ones++;
             }
         }
-        double bitRatio = static_cast<double>(ones) / (data.size() * 8);
+        double bitRatio = static_cast<double>(ones) / static_cast<double>(data.size() * 8u);
         stats["monobit_ratio"] = bitRatio;
         stats["monobit_pass"] = (bitRatio > 0.45 && bitRatio < 0.55);
         
@@ -732,11 +740,11 @@ std::vector<uint8_t> WebServer::base64Decode(const std::string& encoded) {
     std::vector<uint8_t> result;
     int val = 0;
     int valb = -8;
-    for (unsigned char c : encoded) {
+    for (char c : encoded) {
         if (c == '=') break;
-        int pos = BASE64_CHARS.find(c);
+        auto pos = BASE64_CHARS.find(c);
         if (pos == std::string::npos) continue;
-        val = (val << 6) + pos;
+        val = (val << 6) + static_cast<int>(pos);
         valb += 6;
         if (valb >= 0) {
             result.push_back(static_cast<uint8_t>((val >> valb) & 0xFF));

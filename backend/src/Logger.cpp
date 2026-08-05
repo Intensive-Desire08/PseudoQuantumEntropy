@@ -46,60 +46,68 @@ bool Logger::initialize(
     Level minLevel,
     size_t maxFileSize,
     unsigned int maxBackupFiles) {
-    
-    std::lock_guard<std::mutex> lock(mutex);
-    
-    if (initialized_) {
-        return true;
-    }
-    
-    this->logFilePath = logFilePathValue;
-    this->consoleOutput = consoleOutput;
-    this->minLevel = minLevel;
-    this->maxFileSize = maxFileSize;
-    this->maxBackupFiles = maxBackupFiles;
-    
-    // Open log file if specified
-    if (!logFilePath.empty()) {
-        // Create directory if it doesn't exist
-        std::filesystem::path path(logFilePath);
-        auto parent = path.parent_path();
-        if (!parent.empty() && !std::filesystem::exists(parent)) {
-            std::filesystem::create_directories(parent);
+
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+
+        if (initialized_) {
+            return true;
         }
-        
-        logFile.open(logFilePath, std::ios::out | std::ios::app);
-        if (!logFile.is_open()) {
-            std::cerr << "[Logger] Failed to open log file: " << logFilePath << std::endl;
-            fileOutput = false;
-        } else {
-            fileOutput = true;
+
+        this->logFilePath = logFilePathValue;
+        this->consoleOutput = consoleOutput;
+        this->minLevel = minLevel;
+        this->maxFileSize = maxFileSize;
+        this->maxBackupFiles = maxBackupFiles;
+
+        // Open log file if specified
+        if (!logFilePath.empty()) {
+            // Create directory if it doesn't exist
+            std::filesystem::path path(logFilePath);
+            auto parent = path.parent_path();
+            if (!parent.empty() && !std::filesystem::exists(parent)) {
+                std::filesystem::create_directories(parent);
+            }
+
+            logFile.open(logFilePath, std::ios::out | std::ios::app);
+            if (!logFile.is_open()) {
+                std::cerr << "[Logger] Failed to open log file: " << logFilePath << std::endl;
+                fileOutput = false;
+            } else {
+                fileOutput = true;
+            }
         }
+
+        initialized_ = true;
     }
-    
-    initialized_ = true;
-    info("Logger initialized (console=" + std::string(consoleOutput ? "on" : "off") +
-         ", file=" + std::string(fileOutput ? "on" : "off") +
-         ", level=" + levelToString(minLevel) + ")");
-    
+
+    std::cout << "[Logger] Logger initialized (console="
+              << (consoleOutput ? "on" : "off")
+              << ", file=" << (fileOutput ? "on" : "off")
+              << ", level=" << levelToString(minLevel) << ')'
+              << std::endl;
+
     return true;
 }
 
 void Logger::shutdown() {
-    std::lock_guard<std::mutex> lock(mutex);
-    
-    if (!initialized_) {
-        return;
+
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+
+        if (!initialized_) {
+            return;
+        }
+
+        if (logFile.is_open()) {
+            logFile.flush();
+            logFile.close();
+        }
+
+        initialized_ = false;
     }
-    
-    info("Logger shutting down...");
-    flush();
-    
-    if (logFile.is_open()) {
-        logFile.close();
-    }
-    
-    initialized_ = false;
+
+    std::cout << "[Logger] Logger shutting down..." << std::endl;
 }
 
 bool Logger::isInitialized() const {
@@ -363,9 +371,6 @@ void Logger::rotateLogFile() {
     
     // Create new log file
     logFile.open(logFilePath, std::ios::out | std::ios::app);
-    if (logFile.is_open()) {
-        info("Log file rotated");
-    }
 }
 
 std::string Logger::getColorCode(Level level) const {

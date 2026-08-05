@@ -2,6 +2,7 @@
 #include "EntropyCollector.h"
 #include "Logger.h"
 #include "WebServer.h"
+#include "build_config.h"
 
 #include <atomic>
 #include <chrono>
@@ -12,6 +13,7 @@
 
 // Fix for Windows: ERROR macro conflicts with logger
 #ifdef _WIN32
+    #include <windows.h>
     #undef ERROR
 #endif
 

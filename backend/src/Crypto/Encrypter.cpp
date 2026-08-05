@@ -48,8 +48,9 @@ std::vector<uint8_t> Encryptor::decryptCombined(
     
     // Split combined data into ciphertext and tag
     size_t ciphertextSize = combined.size() - TAG_SIZE;
-    std::vector<uint8_t> ciphertext(combined.begin(), combined.begin() + ciphertextSize);
-    std::vector<uint8_t> tag(combined.begin() + ciphertextSize, combined.end());
+    auto offset = static_cast<std::vector<uint8_t>::difference_type>(ciphertextSize);
+    std::vector<uint8_t> ciphertext(combined.begin(), combined.begin() + offset);
+    std::vector<uint8_t> tag(combined.begin() + offset, combined.end());
     
     return decryptInternal(ciphertext, key, iv, tag, aad);
 }
@@ -145,7 +146,7 @@ Encryptor::EncryptResult Encryptor::encryptInternal(
     totalLen += outLen;
     
     // Resize ciphertext to actual size
-    ciphertext.resize(totalLen);
+    ciphertext.resize(static_cast<std::vector<uint8_t>::size_type>(totalLen));
     
     // Get authentication tag
     std::vector<uint8_t> tag(TAG_SIZE);
@@ -246,7 +247,7 @@ std::vector<uint8_t> Encryptor::decryptInternal(
     totalLen += outLen;
     
     // Resize plaintext to actual size
-    plaintext.resize(totalLen);
+    plaintext.resize(static_cast<std::vector<uint8_t>::size_type>(totalLen));
     
     return plaintext;
 }

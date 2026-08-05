@@ -75,7 +75,7 @@ public:
      * @brief Set the server port
      * @param port Port number
      */
-    void setPort(unsigned int port);
+    void setPort(unsigned int newPort);
 
     /**
      * @brief Get the frontend path

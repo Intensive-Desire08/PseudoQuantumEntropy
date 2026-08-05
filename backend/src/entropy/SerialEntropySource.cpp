@@ -2,18 +2,23 @@
 #include <iostream>
 #include <chrono>
 #include <thread>
-#include <array>
-#include <boost/asio/read.hpp>
-#include <boost/asio/write.hpp>
-#include <boost/asio/read_until.hpp>
+
+#if PQT_HAS_BOOST_ASIO
+    #include <array>
+    #include <boost/asio/read.hpp>
+    #include <boost/asio/write.hpp>
+    #include <boost/asio/read_until.hpp>
 
 using namespace boost::asio;
+#endif
 
 SerialEntropySource::SerialEntropySource(const std::string& port, unsigned int baudRate, unsigned int timeoutMs)
     : portName(port)
     , baudRate(baudRate)
     , timeoutMs(timeoutMs)
+#if PQT_HAS_BOOST_ASIO
     , serialPort(ioContext)
+#endif
     , initialized(false)
     , available(false)
     , bytesGenerated(0) {
@@ -25,6 +30,13 @@ SerialEntropySource::~SerialEntropySource() {
 
 bool SerialEntropySource::initialize() {
     std::lock_guard<std::mutex> lock(mutex);
+
+#if !PQT_HAS_BOOST_ASIO
+    std::cerr << "[SerialEntropySource] Boost.Asio is unavailable; hardware serial entropy is disabled" << std::endl;
+    available = false;
+    initialized = true;
+    return false;
+#else
     
     try {
         // Open the serial port
@@ -59,10 +71,17 @@ bool SerialEntropySource::initialize() {
         initialized = true; // Still mark as initialized so we can fallback
         return false;
     }
+#endif
 }
 
 void SerialEntropySource::shutdown() {
     std::lock_guard<std::mutex> lock(mutex);
+
+#if !PQT_HAS_BOOST_ASIO
+    available = false;
+    initialized = false;
+    return;
+#endif
     
     if (serialPort.is_open()) {
         try {
@@ -92,6 +111,11 @@ std::vector<uint8_t> SerialEntropySource::getEntropy(size_t numBytes) {
     if (!isAvailable()) {
         throw EntropyException("Serial entropy source not available");
     }
+
+#if !PQT_HAS_BOOST_ASIO
+    (void)numBytes;
+    throw EntropyException("Serial entropy source unavailable in this build");
+#else
     
     std::vector<uint8_t> result;
     result.reserve(numBytes);
@@ -101,15 +125,21 @@ std::vector<uint8_t> SerialEntropySource::getEntropy(size_t numBytes) {
     }
     
     return result;
+#endif
 }
 
 uint8_t SerialEntropySource::getByte() {
     if (!isAvailable()) {
         throw EntropyException("Serial entropy source not available");
     }
+
+#if !PQT_HAS_BOOST_ASIO
+    throw EntropyException("Serial entropy source unavailable in this build");
+#else
     
     std::lock_guard<std::mutex> lock(mutex);
     return readEntropyPacket();
+#endif
 }
 
 void SerialEntropySource::setTimeout(unsigned int timeoutMs) {
@@ -121,11 +151,15 @@ unsigned int SerialEntropySource::getTimeout() const {
 }
 
 void SerialEntropySource::flushBuffer() {
+#if !PQT_HAS_BOOST_ASIO
+    return;
+#else
     if (!serialPort.is_open()) {
         return;
     }
 
     discardBuffer.clear();
+#endif
 }
 
 size_t SerialEntropySource::getTotalBytesGenerated() const {
@@ -145,6 +179,9 @@ void SerialEntropySource::reseed() {
 }
 
 bool SerialEntropySource::testConnection() {
+#if !PQT_HAS_BOOST_ASIO
+    return false;
+#else
     try {
         // Send a simple test command or just try to read
         // ESP32 continuously outputs entropy, so just try to sync
@@ -153,9 +190,13 @@ bool SerialEntropySource::testConnection() {
         std::cerr << "[SerialEntropySource] Connection test failed: " << e.what() << std::endl;
         return false;
     }
+#endif
 }
 
 bool SerialEntropySource::syncToMarker() {
+#if !PQT_HAS_BOOST_ASIO
+    return false;
+#else
     const unsigned int startTime = static_cast<unsigned int>(
         std::chrono::duration_cast<std::chrono::milliseconds>(
             std::chrono::steady_clock::now().time_since_epoch()
@@ -179,9 +220,13 @@ bool SerialEntropySource::syncToMarker() {
             return true; // Found sync marker
         }
     }
+#endif
 }
 
 uint8_t SerialEntropySource::readByte() {
+#if !PQT_HAS_BOOST_ASIO
+    throw EntropyException("Serial entropy source unavailable in this build");
+#else
     if (!serialPort.is_open()) {
         throw EntropyException("Serial port not open");
     }
@@ -199,9 +244,13 @@ uint8_t SerialEntropySource::readByte() {
     }
     
     return byte;
+#endif
 }
 
 uint8_t SerialEntropySource::readEntropyPacket() {
+#if !PQT_HAS_BOOST_ASIO
+    throw EntropyException("Serial entropy source unavailable in this build");
+#else
     const unsigned int startTime = static_cast<unsigned int>(
         std::chrono::duration_cast<std::chrono::milliseconds>(
             std::chrono::steady_clock::now().time_since_epoch()
@@ -228,4 +277,5 @@ uint8_t SerialEntropySource::readEntropyPacket() {
             return entropyByte;
         }
     }
+#endif
 }
