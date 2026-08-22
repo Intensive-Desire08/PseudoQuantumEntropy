@@ -13,6 +13,7 @@
 #include <random>
 #include <chrono>
 #include <filesystem>
+#include <cstdio>
 
 // Base64 utilities
 static const std::string BASE64_CHARS =
@@ -536,33 +537,97 @@ void WebServer::handleTest(const httplib::Request& req, httplib::Response& res) 
             return;
         }
         
-        // Get entropy for testing
         std::vector<uint8_t> data = entropyCollector.getEntropy(numBytes);
-        
-        // Calculate some basic statistics
+
+        std::filesystem::path analyzerScript;
+        std::filesystem::path searchDir = std::filesystem::current_path();
+        for (int depth = 0; depth < 12; ++depth) {
+            std::filesystem::path candidate = searchDir / "analyzer" / "entropy_analyzer.py";
+            if (std::filesystem::exists(candidate)) {
+                analyzerScript = candidate;
+                break;
+            }
+            auto parent = searchDir.parent_path();
+            if (parent == searchDir) {
+                break;
+            }
+            searchDir = parent;
+        }
+
+        std::string pythonExe = "python";
+        std::filesystem::path pythonCandidate = std::filesystem::current_path() / ".venv" / "Scripts" / "python.exe";
+        if (std::filesystem::exists(pythonCandidate)) {
+            pythonExe = pythonCandidate.string();
+        } else {
+            std::filesystem::path unixPython = "/usr/bin/python3";
+            if (std::filesystem::exists(unixPython)) {
+                pythonExe = unixPython.string();
+            }
+        }
+
+        if (!analyzerScript.empty()) {
+            auto tempFile = std::filesystem::temp_directory_path() / ("pqe_entropy_" + std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count()) + ".bin");
+            std::ofstream inputFile(tempFile, std::ios::binary);
+            if (inputFile.is_open()) {
+                inputFile.write(reinterpret_cast<const char*>(data.data()), static_cast<std::streamsize>(data.size()));
+                inputFile.close();
+            }
+
+            std::string command = "\"" + pythonExe + "\" \"" + analyzerScript.string() + "\" --mode " + mode + " < \"" + tempFile.string() + "\"";
+            FILE* pipe = popen(command.c_str(), "r");
+            std::string analyzerOutput;
+            if (pipe) {
+                char buffer[4096];
+                while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+                    analyzerOutput += buffer;
+                }
+                pclose(pipe);
+            }
+
+            if (std::filesystem::exists(tempFile)) {
+                std::filesystem::remove(tempFile);
+            }
+
+            try {
+                if (!analyzerOutput.empty()) {
+                    nlohmann::json analyzerJson = nlohmann::json::parse(analyzerOutput);
+                    nlohmann::json response;
+                    response["status"] = analyzerJson.value("status", "ok");
+                    response["mode"] = analyzerJson.value("mode", mode);
+                    response["timestamp"] = analyzerJson.value("timestamp", "");
+                    response["total_bytes"] = analyzerJson.value("total_bytes", data.size());
+                    response["statistics"] = analyzerJson.value("test_results", nlohmann::json::array());
+                    response["data"] = hexEncode(data);
+                    response["analysis"] = analyzerJson;
+                    res.set_content(response.dump(2), "application/json");
+                    return;
+                }
+            } catch (const std::exception&) {
+                // Fall back below if the analyzer output is invalid.
+            }
+        }
+
+        // Fallback statistics if the analyzer is unavailable or fails.
         nlohmann::json stats;
         stats["byte_count"] = data.size();
-        
-        // Frequency counts
+
         std::unordered_map<uint8_t, size_t> freq;
         for (uint8_t byte : data) {
             freq[byte]++;
         }
-        
-        // Calculate chi-square
+
         double expected = static_cast<double>(data.size()) / 256.0;
         double chiSquare = 0.0;
         for (size_t i = 0; i < 256; ++i) {
             double observed = static_cast<double>(freq[static_cast<uint8_t>(i)]);
             chiSquare += ((observed - expected) * (observed - expected)) / expected;
         }
-        
+
         stats["chi_square"] = chiSquare;
         stats["expected_per_byte"] = expected;
         stats["unique_bytes"] = freq.size();
-        stats["entropy_estimate"] = 0.0; // Placeholder
-        
-        // Quick monobit test
+        stats["entropy_estimate"] = 0.0;
+
         size_t ones = 0;
         for (uint8_t byte : data) {
             for (int i = 0; i < 8; ++i) {
@@ -578,6 +643,7 @@ void WebServer::handleTest(const httplib::Request& req, httplib::Response& res) 
         response["mode"] = mode;
         response["statistics"] = stats;
         response["data"] = hexEncode(data);
+        response["analysis_note"] = "Fallback summary used because the Python analyzer was unavailable.";
         
         res.set_content(response.dump(2), "application/json");
         
