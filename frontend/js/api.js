@@ -4,6 +4,7 @@ window.PQEApi = {
   async request(path, options = {}) {
     const method = (options.method || 'GET').toUpperCase();
     const isFormData = options.body instanceof FormData;
+    const expectsBlob = options.responseType === 'blob' || options.raw === true;
 
     const headers = new Headers(options.headers || {});
 
@@ -17,6 +18,26 @@ window.PQEApi = {
       headers,
       mode: 'cors'
     });
+
+    if (expectsBlob) {
+      if (!response.ok) {
+        const text = await response.text();
+        let payload = null;
+        try {
+          payload = JSON.parse(text);
+        } catch (error) {
+          payload = text;
+        }
+
+        const message =
+          (payload && typeof payload === 'object' && payload.error) ||
+          (payload && typeof payload === 'object' && payload.message) ||
+          `Request failed with status ${response.status}`;
+        throw new Error(message);
+      }
+
+      return response.blob();
+    }
 
     const text = await response.text();
     let payload = null;
@@ -48,7 +69,7 @@ window.PQEApi = {
     return this.request(`/entropy?bytes=${encodeURIComponent(bytes)}`);
   },
 
-  async generateKey(payload = {}) {
+  async keygen(payload = {}) {
     const requestBody = {
       password: payload.password || '',
       salt: payload.salt || '',
@@ -61,6 +82,10 @@ window.PQEApi = {
       method: 'POST',
       body: JSON.stringify(requestBody)
     });
+  },
+
+  async generateKey(payload = {}) {
+    return this.keygen(payload);
   },
 
   async testEntropy(payload = {}) {
@@ -79,10 +104,30 @@ window.PQEApi = {
     return this.request('/settings');
   },
 
-  async updateSettings(payload = {}) {
+  async settings(payload = {}) {
     return this.request('/settings', {
       method: 'POST',
       body: JSON.stringify(payload)
+    });
+  },
+
+  async updateSettings(payload = {}) {
+    return this.settings(payload);
+  },
+
+  async encrypt(formData) {
+    return this.request('/encrypt', {
+      method: 'POST',
+      body: formData,
+      responseType: 'blob'
+    });
+  },
+
+  async decrypt(formData) {
+    return this.request('/decrypt', {
+      method: 'POST',
+      body: formData,
+      responseType: 'blob'
     });
   },
 
@@ -98,10 +143,7 @@ window.PQEApi = {
       formData.append('iv', iv);
     }
 
-    return this.request('/encrypt', {
-      method: 'POST',
-      body: formData
-    });
+    return this.encrypt(formData);
   },
 
   async decryptFile(file, key, iv, tag) {
@@ -111,9 +153,6 @@ window.PQEApi = {
     formData.append('iv', iv);
     formData.append('tag', tag);
 
-    return this.request('/decrypt', {
-      method: 'POST',
-      body: formData
-    });
+    return this.decrypt(formData);
   }
 };

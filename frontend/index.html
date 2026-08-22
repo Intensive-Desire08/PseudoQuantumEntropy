@@ -62,21 +62,75 @@
       </section>
 
       <section id="encryption" class="page-section d-none">
-        <h1>Encryption</h1>
-        <p class="text-muted">Encryption utilities will be added here.</p>
-        <div id="encryption-status" class="alert alert-secondary">Page loaded.</div>
+        <h1>Encryption &amp; Decryption</h1>
+        <form id="encryption-form" class="row g-3">
+          <div class="col-md-6">
+            <label for="encryption-file" class="form-label">Select file</label>
+            <input id="encryption-file" class="form-control" type="file" required />
+          </div>
+          <div class="col-md-3">
+            <label for="encryption-mode" class="form-label">Mode</label>
+            <select id="encryption-mode" class="form-select">
+              <option value="encrypt">Encrypt</option>
+              <option value="decrypt">Decrypt</option>
+            </select>
+          </div>
+          <div class="col-md-3 d-flex align-items-end">
+            <button type="submit" class="btn btn-primary w-100">Run</button>
+          </div>
+        </form>
+
+        <div id="encryption-status" class="alert alert-secondary mt-3">Ready.</div>
+        <div class="mt-3">
+          <a id="encryption-download" class="btn btn-success d-none" href="#" download>Download result</a>
+        </div>
       </section>
 
       <section id="keygen" class="page-section d-none">
         <h1>Key Generation</h1>
-        <p class="text-muted">Key generation utilities will be added here.</p>
-        <div id="keygen-status" class="alert alert-secondary">Page loaded.</div>
+        <form id="keygen-form" class="row g-3">
+          <div class="col-md-6">
+            <label for="keygen-password" class="form-label">Password</label>
+            <input id="keygen-password" class="form-control" type="text" placeholder="Enter password" />
+          </div>
+          <div class="col-md-6">
+            <label for="keygen-salt" class="form-label">Salt</label>
+            <input id="keygen-salt" class="form-control" type="text" placeholder="Enter salt" />
+          </div>
+          <div class="col-12">
+            <button type="submit" class="btn btn-primary">Generate key</button>
+            <button type="button" id="copy-key-btn" class="btn btn-outline-secondary">Copy key</button>
+          </div>
+        </form>
+
+        <div id="keygen-status" class="alert alert-secondary mt-3">Ready.</div>
+        <div class="mt-3">
+          <label for="keygen-output" class="form-label">Generated key</label>
+          <textarea id="keygen-output" class="form-control" rows="6" readonly placeholder="Generated key will appear here..."></textarea>
+        </div>
       </section>
 
       <section id="settings" class="page-section d-none">
         <h1>Settings</h1>
-        <p class="text-muted">Runtime settings will be managed here.</p>
-        <div id="settings-status" class="alert alert-secondary">Page loaded.</div>
+        <form id="settings-form" class="row g-3">
+          <div class="col-md-4">
+            <label for="settings-port" class="form-label">COM Port</label>
+            <input id="settings-port" class="form-control" type="text" />
+          </div>
+          <div class="col-md-4">
+            <label for="settings-baud" class="form-label">Baud Rate</label>
+            <input id="settings-baud" class="form-control" type="number" min="1" step="1" />
+          </div>
+          <div class="col-md-4">
+            <label for="settings-source" class="form-label">Entropy Source</label>
+            <input id="settings-source" class="form-control" type="text" />
+          </div>
+          <div class="col-12">
+            <button type="submit" class="btn btn-primary">Save settings</button>
+          </div>
+        </form>
+
+        <div id="settings-status" class="alert alert-secondary mt-3">Loading settings...</div>
       </section>
     </main>
 
