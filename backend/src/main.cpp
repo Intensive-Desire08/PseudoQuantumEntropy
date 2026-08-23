@@ -10,6 +10,8 @@
 #include <iostream>
 #include <thread>
 #include <iomanip>
+#include <fstream>
+#include <vector>
 
 // Fix for Windows: ERROR macro conflicts with logger
 #ifdef _WIN32
@@ -72,15 +74,15 @@ void printBanner() {
     std::cout << R"(
 ╔═══════════════════════════════════════════════════════════════╗
 ║                                                               ║
-║     ██████╗ ███████╗██╗   ██╗██████╗  ██████╗                ║
-║     ██╔══██╗██╔════╝██║   ██║██╔══██╗██╔═══██╗               ║
-║     ██████╔╝█████╗  ██║   ██║██████╔╝██║   ██║               ║
-║     ██╔═══╝ ██╔══╝  ██║   ██║██╔══██╗██║   ██║               ║
-║     ██║     ███████╗╚██████╔╝██║  ██║╚██████╔╝               ║
-║     ╚═╝     ╚══════╝ ╚═════╝ ╚═╝  ╚═╝ ╚═════╝                ║
+║     ██████╗ ███████╗██╗   ██╗██████╗  ██████╗                 ║
+║     ██╔══██╗██╔════╝██║   ██║██╔══██╗██╔═══██╗                ║
+║     ██████╔╝█████╗  ██║   ██║██████╔╝██║   ██║                ║
+║     ██╔═══╝ ██╔══╝  ██║   ██║██╔══██╗██║   ██║                ║
+║     ██║     ███████╗╚██████╔╝██║  ██║╚██████╔╝                ║
+║     ╚═╝     ╚══════╝ ╚═════╝ ╚═╝  ╚═╝ ╚═════╝                 ║
 ║                                                               ║
-║     PseudoQuantum Entropy Service v1.0                       ║
-║     Hardware-Backed Entropy with Cryptographic Applications  ║
+║     PseudoQuantum Entropy Service v1.0                        ║
+║     Hardware-Backed Entropy with Cryptographic Applications   ║
 ║                                                               ║
 ╚═══════════════════════════════════════════════════════════════╝
     )" << std::endl;
@@ -110,6 +112,13 @@ void printConfiguration(const Config& config) {
 
 int main(int argc, char* argv[]) {
     // ------------------------------------------------------------------------
+    // 0. Set console to UTF-8 for Windows
+    // ------------------------------------------------------------------------
+#ifdef _WIN32
+    SetConsoleOutputCP(CP_UTF8);
+#endif
+
+    // ------------------------------------------------------------------------
     // 1. Print Banner
     // ------------------------------------------------------------------------
     printBanner();
@@ -137,6 +146,20 @@ int main(int argc, char* argv[]) {
     if (argc > 1) {
         configPath = argv[1];
         std::cout << "[main] Using config file: " << configPath << std::endl;
+    } else {
+        std::vector<std::string> searchPaths = {
+            "config/backend_config.json",
+            "../config/backend_config.json",
+            "../../config/backend_config.json",
+            "../../../config/backend_config.json"
+        };
+        for (const auto& path : searchPaths) {
+            std::ifstream f(path);
+            if (f.good()) {
+                configPath = path;
+                break;
+            }
+        }
     }
 
     if (!config.load(configPath)) {
@@ -250,10 +273,13 @@ int main(int argc, char* argv[]) {
     // ------------------------------------------------------------------------
     // 8. Ready & Running
     // ------------------------------------------------------------------------
-    std::cout << "\n[main] ⚡ PseudoQuantumEntropy is running..." << std::endl;
-    std::cout << "[main] 🌐 Web interface: http://localhost:" << config.getHttpPort() << std::endl;
-    std::cout << "[main] 📊 Entropy source: " << entropyCollector.getSourceName() << std::endl;
-    std::cout << "[main] 🔒 Press Ctrl+C to stop" << std::endl;
+    std::cout << "\n" << std::string(60, '=') << std::endl;
+    std::cout << "  PseudoQuantumEntropy v" << PROJECT_VERSION << " - RUNNING" << std::endl;
+    std::cout << std::string(60, '=') << std::endl;
+    std::cout << "  Web interface   : http://localhost:" << config.getHttpPort() << std::endl;
+    std::cout << "  Entropy source  : " << entropyCollector.getSourceName() << std::endl;
+    std::cout << "  Status          : Press Ctrl+C to stop" << std::endl;
+    std::cout << std::string(60, '=') << std::endl;
     std::cout << std::endl;
 
     LOG_INFO("Backend is now running");
