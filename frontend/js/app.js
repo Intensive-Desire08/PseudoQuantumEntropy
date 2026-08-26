@@ -26,9 +26,11 @@ window.PQEApp = {
       });
     }
 
-    if (window.PQEPage[page]) {
-      window.PQEPage[page]();
-    }
+    Object.keys(window.PQEPage).forEach(key => {
+      if (typeof window.PQEPage[key] === 'function') {
+        window.PQEPage[key]();
+      }
+    });
   },
 
   setActivePage(pageName) {

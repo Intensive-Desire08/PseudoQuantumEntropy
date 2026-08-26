@@ -313,7 +313,7 @@ std::string Config::getTestMode() const {
 }
 
 std::string Config::getFrontendPath() const {
-    return get<std::string>("server.frontend_path", "../frontend");
+    return get<std::string>("server.frontend_path", "../../frontend");
 }
 
 nlohmann::json Config::getJsonValue(const std::string& key) const {
@@ -369,7 +369,7 @@ nlohmann::json Config::createDefaultConfig() {
     defaults["analysis"]["test_size"] = 1024;
 
     defaults["server"] = nlohmann::json::object();
-    defaults["server"]["frontend_path"] = "../frontend";
+    defaults["server"]["frontend_path"] = "../../frontend";
     defaults["server"]["max_upload_size"] = 10485760;
 
     defaults["crypto"] = nlohmann::json::object();

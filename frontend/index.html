@@ -71,14 +71,26 @@
             <label for="encryption-file" class="form-label">Select file</label>
             <input id="encryption-file" class="form-control" type="file" required />
           </div>
-          <div class="col-md-3">
+          <div class="col-md-6">
+            <label for="encryption-key" class="form-label">Key (Hex)</label>
+            <input id="encryption-key" class="form-control" type="text" placeholder="16, 24, or 32 bytes hex string" required />
+          </div>
+          <div class="col-md-4">
+            <label for="encryption-iv" class="form-label">IV (Hex, for Decrypt)</label>
+            <input id="encryption-iv" class="form-control" type="text" placeholder="IV hex string" />
+          </div>
+          <div class="col-md-4">
+            <label for="encryption-tag" class="form-label">Tag (Hex, for Decrypt)</label>
+            <input id="encryption-tag" class="form-control" type="text" placeholder="Tag hex string" />
+          </div>
+          <div class="col-md-2">
             <label for="encryption-mode" class="form-label">Mode</label>
             <select id="encryption-mode" class="form-select">
               <option value="encrypt">Encrypt</option>
               <option value="decrypt">Decrypt</option>
             </select>
           </div>
-          <div class="col-md-3 d-flex align-items-end">
+          <div class="col-md-2 d-flex align-items-end">
             <button type="submit" class="btn btn-primary w-100">Run</button>
           </div>
         </form>

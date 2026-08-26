@@ -14,6 +14,7 @@
 #include <chrono>
 #include <filesystem>
 #include <cstdio>
+#include <vector>
 
 // Base64 utilities
 static const std::string BASE64_CHARS =
@@ -41,10 +42,18 @@ WebServer::WebServer(
     
     // Ensure frontend path is absolute or relative to executable
     if (!std::filesystem::exists(frontendPathValue)) {
-        // Try to find it relative to current directory
-        std::string altPath = "../" + frontendPathValue;
-        if (std::filesystem::exists(altPath)) {
-            this->frontendPath = altPath;
+        // Try to find it relative to current directory by going up a few levels
+        std::vector<std::string> searchPrefixes = {
+            "../",
+            "../../",
+            "../../../"
+        };
+        for (const auto& prefix : searchPrefixes) {
+            std::string altPath = prefix + frontendPathValue;
+            if (std::filesystem::exists(altPath)) {
+                this->frontendPath = altPath;
+                break;
+            }
         }
     }
 }
@@ -274,6 +283,7 @@ void WebServer::serveStaticFile(const httplib::Request& req, httplib::Response& 
     else if (endsWith(path, ".svg")) contentType = "image/svg+xml";
     else if (endsWith(path, ".ico")) contentType = "image/x-icon";
     
+    res.set_header("Cache-Control", "no-cache, no-store, must-revalidate");
     res.set_content(content, contentType);
     logRequest("GET", req.path, 200);
 }
@@ -555,7 +565,8 @@ void WebServer::handleTest(const httplib::Request& req, httplib::Response& res) 
         }
 
         std::string pythonExe = "python";
-        std::filesystem::path pythonCandidate = std::filesystem::current_path() / ".venv" / "Scripts" / "python.exe";
+        std::filesystem::path projectRoot = analyzerScript.empty() ? std::filesystem::current_path() : analyzerScript.parent_path().parent_path();
+        std::filesystem::path pythonCandidate = projectRoot / ".venv" / "Scripts" / "python.exe";
         if (std::filesystem::exists(pythonCandidate)) {
             pythonExe = pythonCandidate.string();
         } else {
@@ -573,7 +584,7 @@ void WebServer::handleTest(const httplib::Request& req, httplib::Response& res) 
                 inputFile.close();
             }
 
-            std::string command = "\"" + pythonExe + "\" \"" + analyzerScript.string() + "\" --mode " + mode + " < \"" + tempFile.string() + "\"";
+            std::string command = "\"\"" + pythonExe + "\" \"" + analyzerScript.string() + "\" --mode " + mode + " < \"" + tempFile.string() + "\"\"";
             FILE* pipe = popen(command.c_str(), "r");
             std::string analyzerOutput;
             if (pipe) {

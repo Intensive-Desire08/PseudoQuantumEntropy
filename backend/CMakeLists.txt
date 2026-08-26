@@ -95,7 +95,7 @@ set(SOURCES
     src/entropy/SerialEntropySource.cpp
     src/entropy/OpenSSLEntropySource.cpp
     src/crypto/KeyGenerator.cpp
-    src/crypto/Encrypter.cpp
+    src/crypto/Encryptor.cpp
     src/crypto/Hasher.cpp
     src/utilities/Helpers.cpp
 )

@@ -22,7 +22,7 @@
         "test_size": 1024
     },
     "server": {
-        "frontend_path": "../frontend",
+        "frontend_path": "./frontend",
         "max_upload_size": 10485760
     },
     "crypto": {
