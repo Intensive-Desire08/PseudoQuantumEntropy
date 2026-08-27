@@ -1,7 +1,7 @@
 # CONTEXT.md — PseudoQuantum Entropy Service
 
-> **Version:** 0.1 alpha build  
-> **Last Updated:** 2026-08-26  
+> **Version:** 0.2 alpha build
+> **Last Updated:** 2026-08-28
 > **Source of Truth:** This file is the PRIMARY reference for all development work.
 
 ---
@@ -11,7 +11,7 @@
 | Field | Value |
 |---|---|
 | **Project** | PseudoQuantum Entropy Service |
-| **Version** | v1.0.0 |
+| **Version** | v0.2.alpha.build.01  |
 | **Type** | Hybrid hardware-software entropy system with cryptographic applications |
 | **Repository** | `Intensive-Desire08/PseudoQuantumEntropy` |
 | **Languages** | C++17 (backend), C++/Arduino (firmware), Python 3.11+ (analyzer), HTML/CSS/JS (frontend) |
@@ -57,11 +57,11 @@
 - [x] Helper/utility module (hex/base64 encoding, conversions)
 - [x] Graceful shutdown with signal handling (Windows `Ctrl+C` + POSIX `SIGINT/SIGTERM`)
 - [x] Cross-platform support (Windows primary, Linux/macOS compatible)
+- [x] README.md completed and LICENSE.md added
 
 ## 🔄 In-Progress Features
 
 - [ ] **Unit / Integration Tests** — `backend/tests/test_1.cpp` exists but is empty
-- [ ] **README.md** — Placeholder only (`<placeholder>`)
 - [ ] **Frontend styling** — Minimal custom CSS (`style.css` is 789 bytes), relies heavily on Bootstrap defaults
 
 ## 📋 Planned Features (Post-v1.0)
@@ -236,7 +236,8 @@ PseudoQuantumEntropy/
 ├── [✅] vcpkg.json                        # Package manifest (boost-asio, openssl, nlohmann-json)
 ├── [✅] package.json                      # Node dependencies (Playwright)
 ├── [✅] playwright.config.ts              # Playwright configuration
-├── [🔄] README.md                         # PLACEHOLDER — needs full content
+├── [✅] README.md                         # Project documentation
+├── [✅] LICENSE.md                        # MIT License
 ├── [✅] CONTEXT.md                        # THIS FILE
 │
 ├── hardware/                              # ESP32 firmware
@@ -387,6 +388,7 @@ npx playwright show-report
 
 | Date | Change | Details |
 |---|---|---|
+| 2026-08-28 | README & License | Completed README.md and added MIT License |
 | 2026-08-27 | Playwright E2E Tests | Initialized Playwright v1.40.0, added `site-audit.spec.ts` |
 | 2026-08-26 | `CONTEXT.md` created | First version, full project audit |
 | 2026-08-22 | Backend first run | Confirmed working — OpenSSL mode, port 8080 |
@@ -397,12 +399,41 @@ npx playwright show-report
 ## 🔮 Immediate Next Steps (Priority Order)
 
 1. **Write unit tests** — `backend/tests/test_1.cpp` is empty. Start with EntropyPool and crypto module tests.
-2. **Expand `README.md`** — Replace placeholder with proper project description, setup instructions, and screenshots.
-3. **Enhance frontend CSS** — `style.css` is minimal (789 bytes). Add dark theme, terminal styling, responsive polish.
-4. **Create `docs/` directory** — Write `ARCHITECTURE.md`, `API.md`, `USER_GUIDE.md`.
-5. **Clean up stale `Config.o`** — Remove from project root or add `*.o` to `.gitignore` (already in `.gitignore` but file exists).
-6. **Test hardware integration** — Verify ESP32 serial communication end-to-end with actual hardware.
+2. **Enhance frontend CSS** — `style.css` is minimal (789 bytes). Add dark theme, terminal styling, responsive polish.
+3. **Create `docs/` directory** — Write `ARCHITECTURE.md`, `API.md`, `USER_GUIDE.md`.
+4. **Clean up stale `Config.o`** — Remove from project root or add `*.o` to `.gitignore` (already in `.gitignore` but file exists).
+5. **Test hardware integration** — Verify ESP32 serial communication end-to-end with actual hardware.
 
+---
+
+## 🎓 Academic Standard / Pre-Beta Checklist
+
+Based on the repository audit, the following deliverables are required to bring the repository to a production-ready academic standard before starting frontend beta development:
+
+### 1. README & Documentation
+- [ ] **System Architecture Diagram**: Add Mermaid/ASCII flow chart showing the data pipeline (`Hardware Harvester` -> `SerialEntropySource` -> `EntropyPool` -> `Crypto / WebServer` -> `NIST Analyzer`).
+- [ ] **Hardware Schematic & Pinout**: Document circuit setup (Zener diode/photodiodes, analog pins, pull-ups, power).
+- [ ] **Mathematical / Entropy Model**: Explain von Neumann debiasing, SHA-256 whitening, pool mixing.
+- [ ] **NIST SP 800-22 Test Results**: Add markdown summary table displaying p-values and pass/fail statuses.
+- [ ] **Step-by-Step Build Guide**: Detail build requirements (CMake, compiler, vcpkg, Python env).
+- [ ] **Restructure `docs/`**: Rename `docs/report_text.txt` to `docs/technical_report.md` and format it properly.
+- [ ] **API Reference**: Document REST endpoints in `docs/api_reference.md`.
+
+### 2. Licensing & Third-Party Attributions
+- [ ] **Third-Party Notices**: Append attributions for `httplib.h` (Yuji Hirose) and `json.hpp` (Niels Lohmann) to `LICENSE.md` or `README.md`.
+
+### 3. C++ Backend Unit Testing
+- [ ] **Unit Tests**: Add a `tests/backend/` directory utilizing Catch2, GoogleTest, or doctest (via `vcpkg`).
+- [ ] **Core Primitives Tests**: Write tests for `EntropyPool` thread synchronization, hashing/whitening output correctness, and `Config` parsing.
+
+### 4. GitHub Actions CI/CD Pipeline
+- [ ] **CI Pipeline**: Create `.github/workflows/ci.yml`.
+- [ ] **Automated Builds**: Build backend on Ubuntu and Windows runners using `CMakePresets.json`.
+- [ ] **Automated Tests**: Run `analyzer/nist_tests.py` against mock generated entropy on every push.
+
+### 5. Hardware Documentation Assets
+- [ ] **Schematic Diagram**: Place a circuit diagram or breadboard render (`hardware/schematic.png` or Fritzing layout) inside `hardware/`.
+- [ ] **Hardware README**: Add `hardware/README.md` specifying supported boards and flashing instructions.
 
 ---
 
