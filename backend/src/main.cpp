@@ -168,6 +168,20 @@ int main(int argc, char* argv[]) {
         config.resetToDefaults();
     }
 
+    std::string loggingConfigPath = configPath;
+    size_t pos = loggingConfigPath.find("backend_config.json");
+    if (pos != std::string::npos) {
+        loggingConfigPath.replace(pos, 19, "logging_config.json");
+    } else {
+        loggingConfigPath = "config/logging_config.json";
+    }
+    
+    if (config.merge(loggingConfigPath)) {
+        std::cout << "[main] Merged logging config from: " << loggingConfigPath << std::endl;
+    } else {
+        std::cerr << "[main] Failed to merge logging config from: " << loggingConfigPath << std::endl;
+    }
+
     // ------------------------------------------------------------------------
     // 4. Initialize Logger
     // ------------------------------------------------------------------------

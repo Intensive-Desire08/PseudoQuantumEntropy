@@ -49,6 +49,34 @@ bool Config::load(const std::string& filename) {
     }
 }
 
+bool Config::merge(const std::string& filename) {
+    try {
+        std::ifstream file(filename);
+        if (!file.is_open()) {
+            return false;
+        }
+        
+        nlohmann::json jsonData;
+        file >> jsonData;
+        file.close();
+        
+        {
+            std::lock_guard<std::mutex> lock(mutex);
+            // Flatten the JSON into the existing config
+            flattenJson("", jsonData);
+        }
+
+        // Validate after load
+        validate();
+        
+        return true;
+        
+    } catch (const std::exception& e) {
+        std::cerr << "[Config] Failed to merge config: " << e.what() << std::endl;
+        return false;
+    }
+}
+
 bool Config::loadFromString(const std::string& jsonString) {
     try {
         nlohmann::json jsonData = nlohmann::json::parse(jsonString);

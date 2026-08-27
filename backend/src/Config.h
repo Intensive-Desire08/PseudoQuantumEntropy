@@ -45,6 +45,14 @@ public:
     bool load(const std::string& filename);
 
     /**
+     * @brief Merge configuration from a JSON file into the existing config
+     * 
+     * @param filename Path to configuration file
+     * @return true if merged successfully
+     */
+    bool merge(const std::string& filename);
+
+    /**
      * @brief Load configuration from a JSON string
      * 
      * @param jsonString JSON string containing configuration

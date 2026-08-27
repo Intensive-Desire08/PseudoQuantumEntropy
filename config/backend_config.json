@@ -12,11 +12,6 @@
     "http": {
         "port": 8080
     },
-    "log": {
-        "file": "logs/backend.log",
-        "level": "INFO",
-        "console_output": true
-    },
     "analysis": {
         "test_mode": "quick",
         "test_size": 1024

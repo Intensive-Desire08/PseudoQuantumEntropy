@@ -43,3 +43,12 @@ __pycache__/
 
 # Local config (if any)
 config/local_*.json
+
+# Playwright
+node_modules/
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/
+/screenshots/
