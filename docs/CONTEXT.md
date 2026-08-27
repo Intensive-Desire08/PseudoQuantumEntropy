@@ -1,7 +1,7 @@
 # CONTEXT.md — PseudoQuantum Entropy Service
 
-> **Version:** 0.1 alpha build  
-> **Last Updated:** 2026-08-26  
+> **Version:** 0.2 alpha build  
+> **Last Updated:** 2026-08-28  
 > **Source of Truth:** This file is the PRIMARY reference for all development work.
 
 ---
@@ -57,11 +57,11 @@
 - [x] Helper/utility module (hex/base64 encoding, conversions)
 - [x] Graceful shutdown with signal handling (Windows `Ctrl+C` + POSIX `SIGINT/SIGTERM`)
 - [x] Cross-platform support (Windows primary, Linux/macOS compatible)
+- [x] README.md completed and LICENSE.md added
 
 ## 🔄 In-Progress Features
 
 - [ ] **Unit / Integration Tests** — `backend/tests/test_1.cpp` exists but is empty
-- [ ] **README.md** — Placeholder only (`<placeholder>`)
 - [ ] **Frontend styling** — Minimal custom CSS (`style.css` is 789 bytes), relies heavily on Bootstrap defaults
 
 ## 📋 Planned Features (Post-v1.0)
@@ -236,7 +236,8 @@ PseudoQuantumEntropy/
 ├── [✅] vcpkg.json                        # Package manifest (boost-asio, openssl, nlohmann-json)
 ├── [✅] package.json                      # Node dependencies (Playwright)
 ├── [✅] playwright.config.ts              # Playwright configuration
-├── [🔄] README.md                         # PLACEHOLDER — needs full content
+├── [✅] README.md                         # Project documentation
+├── [✅] LICENSE.md                        # MIT License
 ├── [✅] CONTEXT.md                        # THIS FILE
 │
 ├── hardware/                              # ESP32 firmware
@@ -387,6 +388,7 @@ npx playwright show-report
 
 | Date | Change | Details |
 |---|---|---|
+| 2026-08-28 | README & License | Completed README.md and added MIT License |
 | 2026-08-27 | Playwright E2E Tests | Initialized Playwright v1.40.0, added `site-audit.spec.ts` |
 | 2026-08-26 | `CONTEXT.md` created | First version, full project audit |
 | 2026-08-22 | Backend first run | Confirmed working — OpenSSL mode, port 8080 |
@@ -397,11 +399,10 @@ npx playwright show-report
 ## 🔮 Immediate Next Steps (Priority Order)
 
 1. **Write unit tests** — `backend/tests/test_1.cpp` is empty. Start with EntropyPool and crypto module tests.
-2. **Expand `README.md`** — Replace placeholder with proper project description, setup instructions, and screenshots.
-3. **Enhance frontend CSS** — `style.css` is minimal (789 bytes). Add dark theme, terminal styling, responsive polish.
-4. **Create `docs/` directory** — Write `ARCHITECTURE.md`, `API.md`, `USER_GUIDE.md`.
-5. **Clean up stale `Config.o`** — Remove from project root or add `*.o` to `.gitignore` (already in `.gitignore` but file exists).
-6. **Test hardware integration** — Verify ESP32 serial communication end-to-end with actual hardware.
+2. **Enhance frontend CSS** — `style.css` is minimal (789 bytes). Add dark theme, terminal styling, responsive polish.
+3. **Create `docs/` directory** — Write `ARCHITECTURE.md`, `API.md`, `USER_GUIDE.md`.
+4. **Clean up stale `Config.o`** — Remove from project root or add `*.o` to `.gitignore` (already in `.gitignore` but file exists).
+5. **Test hardware integration** — Verify ESP32 serial communication end-to-end with actual hardware.
 
 
 ---
