@@ -96,6 +96,12 @@ public:
     size_t getTotalBytesGenerated() const;
 
     /**
+     * @brief Get the current entropy generation speed in bytes/sec
+     * @return double Speed
+     */
+    double getSpeed() const;
+
+    /**
      * @brief Check if the pool is running
      * @return true if running
      */
@@ -197,6 +203,7 @@ private:
     std::atomic<bool> running;
     std::atomic<bool> stopped;
     std::atomic<size_t> totalBytesGenerated;
+    std::atomic<double> currentSpeed;
 
     // Synchronization
     mutable std::mutex mutex;

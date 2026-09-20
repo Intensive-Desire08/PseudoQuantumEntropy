@@ -1,0 +1,45 @@
+- generic [active] [ref=e1]:
+  - navigation [ref=e2]:
+    - generic [ref=e3]:
+      - link "PseudoQuantum Entropy" [ref=e4] [cursor=pointer]:
+        - /url: "#home"
+      - list [ref=e6]:
+        - listitem [ref=e7]:
+          - link "Home" [ref=e8] [cursor=pointer]:
+            - /url: "#home"
+        - listitem [ref=e9]:
+          - link "Encryption" [ref=e10] [cursor=pointer]:
+            - /url: "#encryption"
+        - listitem [ref=e11]:
+          - link "Key Generation" [ref=e12] [cursor=pointer]:
+            - /url: "#keygen"
+        - listitem [ref=e13]:
+          - link "Settings" [ref=e14] [cursor=pointer]:
+            - /url: "#settings"
+        - listitem [ref=e15]:
+          - link "Entropy Test" [ref=e16] [cursor=pointer]:
+            - /url: "#test"
+  - main [ref=e17]:
+    - generic [ref=e18]:
+      - generic [ref=e19]:
+        - heading "System Status" [level=1] [ref=e20]
+        - button "Refresh" [ref=e21] [cursor=pointer]
+      - generic [ref=e22]:
+        - generic [ref=e25]:
+          - generic [ref=e26]: Status
+          - generic [ref=e27]: ok
+        - generic [ref=e30]:
+          - generic [ref=e31]: Hardware Available
+          - generic [ref=e32]: "true"
+        - generic [ref=e35]:
+          - generic [ref=e36]: Entropy Source
+          - generic [ref=e37]: ESP32 Hardware TRNG (Dual Photodiode)
+        - generic [ref=e40]:
+          - generic [ref=e41]: Pool Size
+          - generic [ref=e42]: 8192 bytes
+        - generic [ref=e45]:
+          - generic [ref=e46]: Speed
+          - generic [ref=e47]: 3874.1 B/s
+        - generic [ref=e50]:
+          - heading "Detailed Response" [level=5] [ref=e51]
+          - generic [ref=e52]: "{ \"entropy\": { \"available_bytes\": 4096, \"hardware_available\": true, \"initialized\": true, \"openssl_available\": true, \"pool_size\": 8192, \"source\": \"ESP32 Hardware TRNG (Dual Photodiode)\", \"source_type\": \"hardware\", \"speed\": 3874.137446375922, \"total_generated\": 4096 }, \"server\": { \"active_connections\": 0, \"port\": 8080, \"running\": true, \"total_requests\": 94 }, \"status\": \"ok\", \"timestamp\": 1789924596696, \"version\": \"v0.2.alpha.build.01\" }"

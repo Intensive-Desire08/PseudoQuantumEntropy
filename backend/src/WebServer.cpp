@@ -306,6 +306,7 @@ void WebServer::handleStatus(const httplib::Request& req, httplib::Response& res
     entropyStatus["available_bytes"] = entropyCollector.getAvailableBytes();
     entropyStatus["total_generated"] = entropyCollector.getTotalBytesGenerated();
     entropyStatus["pool_size"] = entropyCollector.getPoolSize();
+    entropyStatus["speed"] = entropyCollector.getSpeed();
     entropyStatus["hardware_available"] = entropyCollector.isHardwareAvailable();
     entropyStatus["openssl_available"] = entropyCollector.isOpenSSLAvailable();
     response["entropy"] = entropyStatus;

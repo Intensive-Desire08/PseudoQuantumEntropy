@@ -15,7 +15,8 @@ EntropyCollector::EntropyCollector()
     , activeSourceType("none")
     , activeSourceName("none")
     , hardwareAvailable(false)
-    , openSSLAvailable(false) {
+    , openSSLAvailable(false)
+    , monitorRunning(false) {
 }
 
 EntropyCollector::~EntropyCollector() {
@@ -87,6 +88,10 @@ bool EntropyCollector::initialize(
         if (startPool(bufferSize)) {
             initialized = true;
             std::cout << "[EntropyCollector] Initialized with OpenSSL fallback" << std::endl;
+            
+            // Start monitor loop
+            monitorRunning = true;
+            monitorThread = std::thread(&EntropyCollector::sourceMonitorLoop, this);
             return true;
         }
     }
@@ -133,10 +138,21 @@ bool EntropyCollector::initializeWithSource(
     
     initialized = true;
     std::cout << "[EntropyCollector] Initialized with " << sourceType << " source: " << activeSourceName << std::endl;
+    
+    // Start monitor loop
+    monitorRunning = true;
+    monitorThread = std::thread(&EntropyCollector::sourceMonitorLoop, this);
     return true;
 }
 
 void EntropyCollector::shutdown() {
+    if (monitorRunning) {
+        monitorRunning = false;
+        if (monitorThread.joinable()) {
+            monitorThread.join();
+        }
+    }
+
     if (entropyPool) {
         entropyPool->stop();
         entropyPool.reset();
@@ -203,6 +219,13 @@ size_t EntropyCollector::getTotalBytesGenerated() const {
         return 0;
     }
     return entropyPool->getTotalBytesGenerated();
+}
+
+double EntropyCollector::getSpeed() const {
+    if (!entropyPool) {
+        return 0.0;
+    }
+    return entropyPool->getSpeed();
 }
 
 void EntropyCollector::resetByteCounter() {
@@ -320,5 +343,40 @@ void EntropyCollector::cleanup() {
     if (entropySource) {
         entropySource->shutdown();
         entropySource.reset();
+    }
+}
+
+void EntropyCollector::sourceMonitorLoop() {
+    while (monitorRunning) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        if (!monitorRunning) break;
+
+        if (activeSourceType == "hardware") {
+            if (entropySource && !entropySource->isAvailable()) {
+                std::cout << "[EntropyCollector] Hardware source disconnected! Falling back to OpenSSL..." << std::endl;
+                if (initializeOpenSSL()) {
+                    if (entropyPool) {
+                        entropyPool->setSource(entropySource);
+                    }
+                }
+            }
+        } else if (activeSourceType == "openssl") {
+            // Check if hardware is back
+            try {
+                auto testSource = std::make_shared<SerialEntropySource>(port, baudRate);
+                if (testSource->initialize()) {
+                    std::cout << "[EntropyCollector] Hardware source reconnected! Switching back..." << std::endl;
+                    entropySource = testSource;
+                    activeSourceType = "hardware";
+                    activeSourceName = testSource->getSourceName();
+                    hardwareAvailable = true;
+                    if (entropyPool) {
+                        entropyPool->setSource(entropySource);
+                    }
+                }
+            } catch (const std::exception&) {
+                // Still disconnected, do nothing
+            }
+        }
     }
 }

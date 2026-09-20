@@ -17,6 +17,7 @@ EntropyPool::EntropyPool(
     , running(false)
     , stopped(false)
     , totalBytesGenerated(0)
+    , currentSpeed(0.0)
     , collectorThread() {
     
     if (!entropySource) {
@@ -45,6 +46,7 @@ bool EntropyPool::start() {
     tail = 0;
     count = 0;
     totalBytesGenerated = 0;
+    currentSpeed = 0.0;
     stopped = false;
     running = true;
     
@@ -139,6 +141,10 @@ size_t EntropyPool::getTotalBytesGenerated() const {
     return totalBytesGenerated;
 }
 
+double EntropyPool::getSpeed() const {
+    return currentSpeed;
+}
+
 bool EntropyPool::isRunning() const {
     return running;
 }
@@ -210,7 +216,30 @@ void EntropyPool::collectionThread() {
                 std::this_thread::sleep_for(std::chrono::milliseconds(100));
             }
         } else {
-            // Buffer is healthy, wait a bit
+            // Buffer is healthy, perform a continuous benchmark to keep speed updated live
+            try {
+                std::shared_ptr<IEntropySource> source;
+                {
+                    std::lock_guard<std::mutex> lock(mutex);
+                    source = entropySource;
+                }
+                
+                if (source && source->isAvailable()) {
+                    auto t0 = std::chrono::steady_clock::now();
+                    auto trash = source->getEntropy(64);
+                    auto t1 = std::chrono::steady_clock::now();
+                    
+                    std::chrono::duration<double> elapsed = t1 - t0;
+                    if (elapsed.count() > 0 && trash.size() > 0) {
+                        double inst_speed = trash.size() / elapsed.count();
+                        double curr = currentSpeed.load();
+                        currentSpeed.store(curr == 0.0 ? inst_speed : (0.2 * inst_speed + 0.8 * curr));
+                    }
+                }
+            } catch (...) {
+                // Ignore benchmark errors
+            }
+            
             std::this_thread::sleep_for(COLLECTION_INTERVAL);
         }
         
@@ -238,12 +267,21 @@ bool EntropyPool::collectEntropy() {
     }
     
     try {
-        // Collect a batch of entropy
+        auto start = std::chrono::steady_clock::now();
         std::vector<uint8_t> entropy = entropySource->getEntropy(COLLECTION_BATCH_SIZE);
+        auto end = std::chrono::steady_clock::now();
         
         if (!entropy.empty()) {
             addBytes(entropy);
             totalBytesGenerated += entropy.size();
+            
+            std::chrono::duration<double> elapsed = end - start;
+            if (elapsed.count() > 0) {
+                double inst_speed = entropy.size() / elapsed.count();
+                double curr = currentSpeed.load();
+                currentSpeed.store(curr == 0.0 ? inst_speed : (0.2 * inst_speed + 0.8 * curr));
+            }
+            
             return true;
         }
         

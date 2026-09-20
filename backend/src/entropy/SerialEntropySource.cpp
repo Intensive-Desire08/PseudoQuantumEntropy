@@ -66,7 +66,8 @@ bool SerialEntropySource::initialize() {
         return available;
         
     } catch (const std::exception& e) {
-        std::cerr << "[SerialEntropySource] Failed to open port " << portName << ": " << e.what() << std::endl;
+        // Suppress terminal output for continuous polling when disconnected
+        // std::cerr << "[SerialEntropySource] Failed to open port " << portName << ": " << e.what() << std::endl;
         available = false;
         initialized = true; // Still mark as initialized so we can fallback
         return false;
@@ -236,10 +237,14 @@ uint8_t SerialEntropySource::readByte() {
     size_t bytesRead = serialPort.read_some(boost::asio::buffer(&byte, 1), ec);
     
     if (ec) {
+        available = false;
+        initialized = false;
         throw EntropyException("Failed to read from serial port: " + ec.message());
     }
     
     if (bytesRead != 1) {
+        available = false;
+        initialized = false;
         throw EntropyException("Timeout reading from serial port");
     }
     

@@ -4,6 +4,8 @@
 #include <vector>
 #include <cstdint>
 #include <string>
+#include <thread>
+#include <atomic>
 
 // Forward declarations
 class IEntropySource;
@@ -144,6 +146,12 @@ public:
      * @return size_t Total bytes generated
      */
     size_t getTotalBytesGenerated() const;
+    
+    /**
+     * @brief Get the current entropy generation speed in bytes/sec
+     * @return double Speed
+     */
+    double getSpeed() const;
 
     /**
      * @brief Reset the byte counter
@@ -225,6 +233,11 @@ private:
      */
     void cleanup();
 
+    /**
+     * @brief Background loop to monitor source health
+     */
+    void sourceMonitorLoop();
+
     // Entropy source
     std::shared_ptr<IEntropySource> entropySource;
     std::unique_ptr<EntropyPool> entropyPool;
@@ -238,6 +251,10 @@ private:
     bool initialized;
     std::string activeSourceType;
     std::string activeSourceName;
+    
+    // Monitoring
+    std::thread monitorThread;
+    std::atomic<bool> monitorRunning;
 
     // Hardware detection status
     bool hardwareAvailable;
