@@ -20,15 +20,16 @@ window.PQEPage.home = async function () {
       let speedStr = 'Calculating...';
 
       if (entropy.speed !== undefined && entropy.speed > 0) {
-        speedStr = `${entropy.speed.toFixed(1)} B/s`;
+        const speedKB = entropy.speed / 1024;
+        speedStr = `${speedKB.toFixed(1)} KB/s`;
       } else {
         const currentTime = Date.now();
         if (lastBytes !== null && lastTime !== null) {
           const timeDiffSec = (currentTime - lastTime) / 1000;
           if (timeDiffSec > 0) {
             const bytesDiff = currentBytes - lastBytes;
-            const speed = (bytesDiff / timeDiffSec).toFixed(1);
-            speedStr = `${speed} B/s`;
+            const speedKB = (bytesDiff / timeDiffSec) / 1024;
+            speedStr = `${speedKB.toFixed(1)} KB/s`;
           }
         }
         lastBytes = currentBytes;

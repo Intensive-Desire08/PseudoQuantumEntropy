@@ -184,6 +184,7 @@ void EntropyPool::setSource(std::shared_ptr<IEntropySource> source) {
     
     std::lock_guard<std::mutex> lock(mutex);
     entropySource = source;
+    currentSpeed.store(0.0);
     std::cout << "[EntropyPool] Source changed to: " << entropySource->getSourceName() << std::endl;
 }
 

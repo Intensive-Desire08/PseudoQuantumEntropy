@@ -347,9 +347,11 @@ void EntropyCollector::cleanup() {
 }
 
 void EntropyCollector::sourceMonitorLoop() {
+    int loopCount = 0;
     while (monitorRunning) {
         std::this_thread::sleep_for(std::chrono::milliseconds(200));
         if (!monitorRunning) break;
+        loopCount++;
 
         if (activeSourceType == "hardware") {
             if (entropySource && !entropySource->isAvailable()) {
@@ -361,21 +363,24 @@ void EntropyCollector::sourceMonitorLoop() {
                 }
             }
         } else if (activeSourceType == "openssl") {
-            // Check if hardware is back
-            try {
-                auto testSource = std::make_shared<SerialEntropySource>(port, baudRate);
-                if (testSource->initialize()) {
-                    std::cout << "[EntropyCollector] Hardware source reconnected! Switching back..." << std::endl;
-                    entropySource = testSource;
-                    activeSourceType = "hardware";
-                    activeSourceName = testSource->getSourceName();
-                    hardwareAvailable = true;
-                    if (entropyPool) {
-                        entropyPool->setSource(entropySource);
+            // Check if hardware is back, but only every 1 second (5 * 200ms) to avoid spamming the port
+            if (loopCount >= 5) {
+                loopCount = 0;
+                try {
+                    auto testSource = std::make_shared<SerialEntropySource>(port, baudRate);
+                    if (testSource->initialize()) {
+                        std::cout << "[EntropyCollector] Hardware source reconnected! Switching back..." << std::endl;
+                        entropySource = testSource;
+                        activeSourceType = "hardware";
+                        activeSourceName = testSource->getSourceName();
+                        hardwareAvailable = true;
+                        if (entropyPool) {
+                            entropyPool->setSource(entropySource);
+                        }
                     }
+                } catch (const std::exception&) {
+                    // Still disconnected, do nothing
                 }
-            } catch (const std::exception&) {
-                // Still disconnected, do nothing
             }
         }
     }
