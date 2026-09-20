@@ -45,7 +45,7 @@ public:
     explicit SerialEntropySource(
         const std::string& port,
         unsigned int baudRate = 115200,
-        unsigned int timeoutMs = 5000
+        unsigned int timeoutMs = 1000
     );
 
     /**
@@ -213,8 +213,8 @@ private:
 #endif
 
     // State management
-    std::atomic<bool> initialized;
-    std::atomic<bool> available;
+    mutable std::atomic<bool> initialized;
+    mutable std::atomic<bool> available;
     std::atomic<size_t> bytesGenerated;
 
     // Thread safety
@@ -229,6 +229,6 @@ private:
     // Constants
     static constexpr uint8_t SYNC_MARKER = 0xAA;
     static constexpr size_t PACKET_SIZE = 2; // [0xAA][Random Byte]
-    static constexpr unsigned int DEFAULT_TIMEOUT_MS = 5000;
+    static constexpr unsigned int DEFAULT_TIMEOUT_MS = 1000;
     static constexpr unsigned int SYNC_TIMEOUT_MS = 1000;
 };

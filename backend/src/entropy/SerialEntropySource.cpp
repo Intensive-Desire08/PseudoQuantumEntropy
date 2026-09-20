@@ -3,6 +3,10 @@
 #include <chrono>
 #include <thread>
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 #if PQT_HAS_BOOST_ASIO
     #include <array>
     #include <boost/asio/read.hpp>
@@ -49,6 +53,16 @@ bool SerialEntropySource::initialize() {
         serialPort.set_option(serial_port_base::parity(serial_port_base::parity::none));
         serialPort.set_option(serial_port_base::flow_control(serial_port_base::flow_control::none));
         
+#ifdef _WIN32
+        // Prevent infinite blocking on Windows when hardware is disconnected
+        HANDLE handle = serialPort.native_handle();
+        COMMTIMEOUTS timeouts = { 0 };
+        timeouts.ReadIntervalTimeout = 50;
+        timeouts.ReadTotalTimeoutMultiplier = 10;
+        timeouts.ReadTotalTimeoutConstant = timeoutMs > 0 ? timeoutMs : 500;
+        SetCommTimeouts(handle, &timeouts);
+#endif
+
         // Flush any pending data
         flushBuffer();
         
@@ -86,7 +100,10 @@ void SerialEntropySource::shutdown() {
     
     if (serialPort.is_open()) {
         try {
-            serialPort.close();
+            boost::system::error_code ec;
+            serialPort.cancel(ec);
+            ioContext.poll();
+            serialPort.close(ec);
             std::cout << "[SerialEntropySource] Serial port closed" << std::endl;
         } catch (const std::exception& e) {
             std::cerr << "[SerialEntropySource] Error closing port: " << e.what() << std::endl;
@@ -97,7 +114,35 @@ void SerialEntropySource::shutdown() {
 }
 
 bool SerialEntropySource::isAvailable() const {
-    return available && initialized;
+    if (!available.load() || !initialized.load()) {
+        return false;
+    }
+
+#if PQT_HAS_BOOST_ASIO
+    std::lock_guard<std::mutex> lock(mutex);
+    if (!serialPort.is_open()) {
+        available.store(false);
+        return false;
+    }
+
+#ifdef _WIN32
+    HANDLE handle = const_cast<boost::asio::serial_port&>(serialPort).native_handle();
+    if (handle == INVALID_HANDLE_VALUE || handle == NULL) {
+        available.store(false);
+        return false;
+    }
+
+    DWORD commErrors = 0;
+    COMSTAT comStat;
+    if (!ClearCommError(handle, &commErrors, &comStat)) {
+        // Physical device disconnected / handle invalidated by Windows
+        available.store(false);
+        return false;
+    }
+#endif
+#endif
+
+    return available.load();
 }
 
 std::string SerialEntropySource::getSourceName() const {
@@ -229,23 +274,57 @@ uint8_t SerialEntropySource::readByte() {
     throw EntropyException("Serial entropy source unavailable in this build");
 #else
     if (!serialPort.is_open()) {
+        available.store(false);
+        initialized.store(false);
         throw EntropyException("Serial port not open");
     }
+
+#ifdef _WIN32
+    HANDLE handle = serialPort.native_handle();
+    DWORD commErrors = 0;
+    COMSTAT comStat;
+    if (!ClearCommError(handle, &commErrors, &comStat)) {
+        available.store(false);
+        initialized.store(false);
+        throw EntropyException("Serial device disconnected");
+    }
+#endif
     
     uint8_t byte = 0;
-    boost::system::error_code ec;
-    size_t bytesRead = serialPort.read_some(boost::asio::buffer(&byte, 1), ec);
+    boost::system::error_code read_ec;
+    size_t bytesRead = 0;
     
-    if (ec) {
-        available = false;
-        initialized = false;
-        throw EntropyException("Failed to read from serial port: " + ec.message());
+    try {
+        ioContext.restart();
+
+        serialPort.async_read_some(boost::asio::buffer(&byte, 1),
+            [&](const boost::system::error_code& ec, size_t n) {
+                read_ec = ec;
+                bytesRead = n;
+            });
+            
+        ioContext.run_for(std::chrono::milliseconds(timeoutMs > 0 ? timeoutMs : 500));
+    } catch (const std::exception& e) {
+        available.store(false);
+        initialized.store(false);
+        throw EntropyException(std::string("Exception during read: ") + e.what());
     }
     
     if (bytesRead != 1) {
-        available = false;
-        initialized = false;
+        try { 
+            boost::system::error_code cancel_ec;
+            serialPort.cancel(cancel_ec); 
+            ioContext.poll();
+        } catch (...) {}
+        available.store(false);
+        initialized.store(false);
         throw EntropyException("Timeout reading from serial port");
+    }
+    
+    if (read_ec) {
+        available.store(false);
+        initialized.store(false);
+        throw EntropyException("Failed to read from serial port: " + read_ec.message());
     }
     
     return byte;
@@ -271,6 +350,8 @@ uint8_t SerialEntropySource::readEntropyPacket() {
         );
         
         if (currentTime - startTime > timeoutMs) {
+            available = false;
+            initialized = false;
             throw EntropyException("Timeout waiting for sync marker");
         }
         

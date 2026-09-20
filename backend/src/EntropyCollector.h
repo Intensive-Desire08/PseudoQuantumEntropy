@@ -248,17 +248,17 @@ private:
     size_t bufferSize;
 
     // State
-    bool initialized;
+    std::atomic<bool> initialized;
     std::string activeSourceType;
     std::string activeSourceName;
-    
-    // Monitoring
-    std::thread monitorThread;
-    std::atomic<bool> monitorRunning;
 
     // Hardware detection status
-    bool hardwareAvailable;
-    bool openSSLAvailable;
+    std::atomic<bool> hardwareAvailable;
+    std::atomic<bool> openSSLAvailable;
+    
+    // Monitoring
+    std::atomic<bool> monitorRunning;
+    std::thread monitorThread;
 
     // Constants
     static constexpr size_t DEFAULT_BUFFER_SIZE = 4096;

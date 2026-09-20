@@ -388,6 +388,7 @@ npx playwright show-report
 
 | Date | Change | Details |
 |---|---|---|
+| 2026-09-21 | Dynamic Hardware Fallback Fix | Fixed dynamic switching and speed freeze on ESP32 disconnect. Active ClearCommError health check in `SerialEntropySource::isAvailable()`, clean port closure, reset `hardwareAvailable` flag, and decay/reset speed in `EntropyPool`. |
 | 2026-09-20 | Encryption UX plan | Designed password-only `.pqe` file format — salt+IV+tag embedded in file header; frontend shows internals for transparency |
 | 2026-08-28 | README & License | Completed README.md and added MIT License |
 | 2026-08-27 | Playwright E2E Tests | Initialized Playwright v1.40.0, added `site-audit.spec.ts` |

@@ -77,6 +77,10 @@ bool EntropyCollector::initialize(
             if (startPool(bufferSize)) {
                 initialized = true;
                 std::cout << "[EntropyCollector] Initialized with hardware source: " << activeSourceName << std::endl;
+                
+                // Start monitor loop to detect disconnects and reconnects
+                monitorRunning = true;
+                monitorThread = std::thread(&EntropyCollector::sourceMonitorLoop, this);
                 return true;
             }
         }
@@ -354,12 +358,28 @@ void EntropyCollector::sourceMonitorLoop() {
         loopCount++;
 
         if (activeSourceType == "hardware") {
-            if (entropySource && !entropySource->isAvailable()) {
+            bool isAvail = false;
+            if (entropySource) {
+                isAvail = entropySource->isAvailable();
+            }
+
+            if (!isAvail) {
                 std::cout << "[EntropyCollector] Hardware source disconnected! Falling back to OpenSSL..." << std::endl;
+                
+                // Clean up disconnected hardware source to close the serial port handle
+                if (entropySource) {
+                    try {
+                        entropySource->shutdown();
+                    } catch (...) {}
+                }
+
+                hardwareAvailable = false;
+
                 if (initializeOpenSSL()) {
                     if (entropyPool) {
                         entropyPool->setSource(entropySource);
                     }
+                    std::cout << "[EntropyCollector] Successfully switched to OpenSSL fallback" << std::endl;
                 }
             }
         } else if (activeSourceType == "openssl") {
@@ -367,7 +387,7 @@ void EntropyCollector::sourceMonitorLoop() {
             if (loopCount >= 5) {
                 loopCount = 0;
                 try {
-                    auto testSource = std::make_shared<SerialEntropySource>(port, baudRate);
+                    auto testSource = std::make_shared<SerialEntropySource>(port, baudRate, 500);
                     if (testSource->initialize()) {
                         std::cout << "[EntropyCollector] Hardware source reconnected! Switching back..." << std::endl;
                         entropySource = testSource;

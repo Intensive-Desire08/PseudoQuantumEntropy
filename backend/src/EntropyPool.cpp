@@ -186,6 +186,10 @@ void EntropyPool::setSource(std::shared_ptr<IEntropySource> source) {
     entropySource = source;
     currentSpeed.store(0.0);
     std::cout << "[EntropyPool] Source changed to: " << entropySource->getSourceName() << std::endl;
+
+    // Wake up collector thread immediately to switch to new source
+    refillCV.notify_all();
+    cv.notify_all();
 }
 
 std::string EntropyPool::getSourceName() const {
@@ -236,9 +240,12 @@ void EntropyPool::collectionThread() {
                         double curr = currentSpeed.load();
                         currentSpeed.store(curr == 0.0 ? inst_speed : (0.2 * inst_speed + 0.8 * curr));
                     }
+                } else {
+                    currentSpeed.store(0.0);
                 }
             } catch (...) {
-                // Ignore benchmark errors
+                // If benchmark fails (e.g. device unplugged), reset speed immediately
+                currentSpeed.store(0.0);
             }
             
             std::this_thread::sleep_for(COLLECTION_INTERVAL);
