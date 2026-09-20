@@ -1,7 +1,7 @@
 # CONTEXT.md — PseudoQuantum Entropy Service
 
 > **Version:** 0.2 alpha build
-> **Last Updated:** 2026-08-28
+> **Last Updated:** 2026-09-20
 > **Source of Truth:** This file is the PRIMARY reference for all development work.
 
 ---
@@ -388,6 +388,7 @@ npx playwright show-report
 
 | Date | Change | Details |
 |---|---|---|
+| 2026-09-20 | Encryption UX plan | Designed password-only `.pqe` file format — salt+IV+tag embedded in file header; frontend shows internals for transparency |
 | 2026-08-28 | README & License | Completed README.md and added MIT License |
 | 2026-08-27 | Playwright E2E Tests | Initialized Playwright v1.40.0, added `site-audit.spec.ts` |
 | 2026-08-26 | `CONTEXT.md` created | First version, full project audit |
@@ -398,11 +399,54 @@ npx playwright show-report
 
 ## 🔮 Immediate Next Steps (Priority Order)
 
-1. **Write unit tests** — `backend/tests/test_1.cpp` is empty. Start with EntropyPool and crypto module tests.
-2. **Enhance frontend CSS** — `style.css` is minimal (789 bytes). Add dark theme, terminal styling, responsive polish.
-3. **Create `docs/` directory** — Write `ARCHITECTURE.md`, `API.md`, `USER_GUIDE.md`.
-4. **Clean up stale `Config.o`** — Remove from project root or add `*.o` to `.gitignore` (already in `.gitignore` but file exists).
-5. **Test hardware integration** — Verify ESP32 serial communication end-to-end with actual hardware.
+### 🔐 [NEXT — TOP PRIORITY] Password-Only File Encryption UX
+
+**Goal:** Make encryption and decryption feel seamless — the user only needs a password. The frontend still surfaces internal cryptographic details (IV, Tag, Key) for educational transparency, but they are no longer *required inputs*.
+
+#### Design
+
+- **Encrypt flow:**
+  1. User selects a file and enters a password.
+  2. Backend internally generates a random **salt** (32 bytes) and a random **IV** (12 bytes).
+  3. `PBKDF2-HMAC-SHA256(password, salt, 100 000 iterations)` → 32-byte AES key.
+  4. `AES-256-GCM(plaintext, key, IV)` → ciphertext + 16-byte authentication tag.
+  5. A `.pqe` (PseudoQuantum Encrypted) file is assembled with the layout:
+     `[salt (32B) | IV (12B) | Tag (16B) | ciphertext]`
+  6. The frontend displays the derived **Key**, **IV**, and **Tag** as hex strings for educational visibility.
+  7. The assembled `.pqe` file is offered as a download — **this is the only thing the user keeps**.
+
+- **Decrypt flow:**
+  1. User uploads the `.pqe` file and enters the same password.
+  2. Backend reads the header: extracts salt (bytes 0–31), IV (bytes 32–43), Tag (bytes 44–59), ciphertext (bytes 60+).
+  3. Re-derives the key: `PBKDF2-HMAC-SHA256(password, salt, 100 000 iterations)`.
+  4. `AES-256-GCM-Decrypt(ciphertext, key, IV, tag)` → plaintext (or error if tag mismatch).
+  5. Frontend displays the derived **Key**, **IV**, and **Tag** as hex for transparency.
+  6. Decrypted file is offered as a download.
+
+#### What stays the same
+- The **"Password → Key" tab** on the Key Generation page remains as-is — it is an educational demo.
+- The frontend **Encryption page** continues to show the IV, Tag, and Key after each operation.
+- The backend `KeyGenerator` and `Encryptor` classes are **not changed** — the new logic lives in the `/encrypt` and `/decrypt` API handlers in `WebServer.cpp`.
+
+#### API changes needed
+| Endpoint | Before | After |
+|---|---|---|
+| `POST /encrypt` | Accepts raw key + IV + plaintext | Accepts password + file; returns `.pqe` file |
+| `POST /decrypt` | Accepts raw key + IV + tag + ciphertext | Accepts password + `.pqe` file; returns original file |
+
+#### Files to modify
+- `backend/src/WebServer.cpp` — Update `/encrypt` and `/decrypt` handlers to implement the self-contained `.pqe` format.
+- `frontend/js/encryption.js` — Update UI to accept password input instead of raw key/IV, display derived internals as read-only info.
+- `frontend/index.html` — Update encryption page form fields accordingly.
+
+---
+
+1. **[NEXT]** Implement password-only encryption UX with `.pqe` self-contained file format (see plan above).
+2. **Write unit tests** — `backend/tests/test_1.cpp` is empty. Start with EntropyPool and crypto module tests.
+3. **Enhance frontend CSS** — `style.css` is minimal (789 bytes). Add dark theme, terminal styling, responsive polish.
+4. **Create `docs/` directory** — Write `ARCHITECTURE.md`, `API.md`, `USER_GUIDE.md`.
+5. **Clean up stale `Config.o`** — Remove from project root or add `*.o` to `.gitignore` (already in `.gitignore` but file exists).
+6. **Test hardware integration** — Verify ESP32 serial communication end-to-end with actual hardware.
 
 ---
 

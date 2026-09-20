@@ -5,12 +5,15 @@ window.PQEPage.encryption = function () {
   if (!form) return;
 
   const fileInput = document.getElementById('encryption-file');
-  const keyInput = document.getElementById('encryption-key');
-  const ivInput = document.getElementById('encryption-iv');
-  const tagInput = document.getElementById('encryption-tag');
+  const passwordInput = document.getElementById('encryption-password');
   const modeSelect = document.getElementById('encryption-mode');
   const status = document.getElementById('encryption-status');
   const downloadLink = document.getElementById('encryption-download');
+
+  const transparencyDiv = document.getElementById('encryption-transparency');
+  const outKey = document.getElementById('encryption-out-key');
+  const outIv = document.getElementById('encryption-out-iv');
+  const outTag = document.getElementById('encryption-out-tag');
 
   function setStatus(message, type = 'secondary') {
     status.className = `alert alert-${type} mt-3`;
@@ -38,22 +41,16 @@ window.PQEPage.encryption = function () {
       return;
     }
 
-    const key = keyInput.value.trim();
-    if (!key) {
-      setStatus('Please enter a key.', 'warning');
+    const password = passwordInput.value.trim();
+    if (!password) {
+      setStatus('Please enter a password.', 'warning');
       return;
     }
 
     const mode = modeSelect.value;
-    const iv = ivInput.value.trim();
-    const tag = tagInput.value.trim();
-
-    if (mode === 'decrypt' && (!iv || !tag)) {
-      setStatus('Please enter IV and Tag for decryption.', 'warning');
-      return;
-    }
 
     setStatus(mode === 'encrypt' ? 'Encrypting...' : 'Decrypting...', 'secondary');
+    transparencyDiv.style.display = 'none';
 
     const submitButton = form.querySelector('button[type="submit"]');
     submitButton.disabled = true;
@@ -62,14 +59,11 @@ window.PQEPage.encryption = function () {
       const arrayBuffer = await file.arrayBuffer();
       const hexData = buf2hex(arrayBuffer);
 
-      let payload = { key: key };
+      let payload = { password: password };
       if (mode === 'encrypt') {
         payload.data = hexData;
-        if (iv) payload.iv = iv;
       } else {
         payload.ciphertext = hexData;
-        payload.iv = iv;
-        payload.tag = tag;
       }
 
       const response = await window.PQEApi.request(mode === 'encrypt' ? '/encrypt' : '/decrypt', {
@@ -77,19 +71,25 @@ window.PQEPage.encryption = function () {
         body: JSON.stringify(payload)
       });
 
+      // Populate transparency details
+      outKey.value = response.key || '';
+      outIv.value = response.iv || '';
+      outTag.value = response.tag || '';
+      transparencyDiv.style.display = 'block';
+
       if (mode === 'encrypt') {
-        setStatus(`Encryption complete. Generated IV: ${response.iv}, Tag: ${response.tag}. SAVE THESE to decrypt!`, 'success');
+        setStatus(`Encryption complete.`, 'success');
         const outBuf = hex2buf(response.ciphertext);
         const blob = new Blob([outBuf], { type: 'application/octet-stream' });
         downloadLink.href = URL.createObjectURL(blob);
-        downloadLink.download = `${file.name}.enc`;
+        downloadLink.download = `${file.name}.pqe`;
         downloadLink.classList.remove('d-none');
       } else {
         setStatus('Decryption complete.', 'success');
         const outBuf = hex2buf(response.plaintext);
         const blob = new Blob([outBuf], { type: 'application/octet-stream' });
         downloadLink.href = URL.createObjectURL(blob);
-        downloadLink.download = file.name.endsWith('.enc') ? file.name.slice(0, -4) : file.name;
+        downloadLink.download = file.name.endsWith('.pqe') ? file.name.slice(0, -4) : file.name;
         downloadLink.classList.remove('d-none');
       }
     } catch (error) {

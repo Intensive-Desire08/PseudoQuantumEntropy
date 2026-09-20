@@ -112,7 +112,7 @@ git clone https://github.com/Intensive-Desire08/PseudoQuantumEntropy.git
 cd PseudoQuantumEntropy
 
 # Configure & build
-cmake --preset=default
+cmake --preset default
 cmake --build build --config Release
 
 # Run the backend (serves frontend on http://localhost:8080)

@@ -67,21 +67,13 @@
       <section id="encryption" class="page-section d-none">
         <h1>Encryption &amp; Decryption</h1>
         <form id="encryption-form" class="row g-3">
-          <div class="col-md-6">
+          <div class="col-md-5">
             <label for="encryption-file" class="form-label">Select file</label>
             <input id="encryption-file" class="form-control" type="file" required />
           </div>
-          <div class="col-md-6">
-            <label for="encryption-key" class="form-label">Key (Hex)</label>
-            <input id="encryption-key" class="form-control" type="text" placeholder="16, 24, or 32 bytes hex string" required />
-          </div>
-          <div class="col-md-4">
-            <label for="encryption-iv" class="form-label">IV (Hex, for Decrypt)</label>
-            <input id="encryption-iv" class="form-control" type="text" placeholder="IV hex string" />
-          </div>
-          <div class="col-md-4">
-            <label for="encryption-tag" class="form-label">Tag (Hex, for Decrypt)</label>
-            <input id="encryption-tag" class="form-control" type="text" placeholder="Tag hex string" />
+          <div class="col-md-5">
+            <label for="encryption-password" class="form-label">Password</label>
+            <input id="encryption-password" class="form-control" type="password" placeholder="Enter password" required />
           </div>
           <div class="col-md-2">
             <label for="encryption-mode" class="form-label">Mode</label>
@@ -90,12 +82,31 @@
               <option value="decrypt">Decrypt</option>
             </select>
           </div>
-          <div class="col-md-2 d-flex align-items-end">
+          <div class="col-12 mt-3">
             <button type="submit" class="btn btn-primary w-100">Run</button>
           </div>
         </form>
 
         <div id="encryption-status" class="alert alert-secondary mt-3">Ready.</div>
+        
+        <div class="mt-4" id="encryption-transparency" style="display: none;">
+          <h5>Cryptographic Details (Read-only)</h5>
+          <div class="row g-2">
+            <div class="col-md-12">
+              <label class="form-label">Derived Key (Hex)</label>
+              <input id="encryption-out-key" class="form-control form-control-sm" type="text" readonly />
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Initialization Vector - IV (Hex)</label>
+              <input id="encryption-out-iv" class="form-control form-control-sm" type="text" readonly />
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Authentication Tag (Hex)</label>
+              <input id="encryption-out-tag" class="form-control form-control-sm" type="text" readonly />
+            </div>
+          </div>
+        </div>
+
         <div class="mt-3">
           <a id="encryption-download" class="btn btn-success d-none" href="#" download>Download result</a>
         </div>

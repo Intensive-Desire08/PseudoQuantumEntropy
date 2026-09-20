@@ -434,38 +434,39 @@ void WebServer::handleEncrypt(const httplib::Request& req, httplib::Response& re
         }
         
         // Get required parameters
-        if (!request.contains("data") || !request.contains("key")) {
+        if (!request.contains("data") || !request.contains("password")) {
             res.status = 400;
-            res.set_content(errorResponse(400, "Missing required fields: data, key"), "application/json");
+            res.set_content(errorResponse(400, "Missing required fields: data, password"), "application/json");
             return;
         }
         
         std::vector<uint8_t> data = hexDecode(request["data"].get<std::string>());
-        std::vector<uint8_t> key = hexDecode(request["key"].get<std::string>());
+        std::string password = request["password"].get<std::string>();
         
-        // Validate key size
-        if (key.size() != 16 && key.size() != 24 && key.size() != 32) {
-            res.status = 400;
-            res.set_content(errorResponse(400, "Key must be 16, 24, or 32 bytes (128, 192, or 256 bits)"), "application/json");
-            return;
-        }
+        // Generate random salt (32 bytes) and IV (12 bytes)
+        std::vector<uint8_t> salt = KeyGenerator::generateSalt(32);
+        std::vector<uint8_t> iv = Encryptor::generateIV(12);
         
-        // Get IV (generate if not provided)
-        std::vector<uint8_t> iv;
-        if (request.contains("iv")) {
-            iv = hexDecode(request["iv"].get<std::string>());
-        } else {
-            iv = Encryptor::generateIV(12); // 96 bits for GCM
-        }
+        // Derive 32-byte key
+        std::vector<uint8_t> key = KeyGenerator::deriveKey(password, salt, 32);
         
         // Encrypt
         auto result = Encryptor::encrypt(data, key, iv);
         
+        // Assemble .pqe file content: [salt(32) | iv(12) | tag(16) | ciphertext]
+        std::vector<uint8_t> pqeFile;
+        pqeFile.reserve(salt.size() + iv.size() + result.tag.size() + result.ciphertext.size());
+        pqeFile.insert(pqeFile.end(), salt.begin(), salt.end());
+        pqeFile.insert(pqeFile.end(), iv.begin(), iv.end());
+        pqeFile.insert(pqeFile.end(), result.tag.begin(), result.tag.end());
+        pqeFile.insert(pqeFile.end(), result.ciphertext.begin(), result.ciphertext.end());
+        
         nlohmann::json response;
         response["status"] = "ok";
-        response["ciphertext"] = hexEncode(result.ciphertext);
+        response["ciphertext"] = hexEncode(pqeFile);
         response["iv"] = hexEncode(iv);
         response["tag"] = hexEncode(result.tag);
+        response["key"] = hexEncode(key);
         response["key_size"] = key.size() * 8;
         
         res.set_content(response.dump(2), "application/json");
@@ -490,31 +491,41 @@ void WebServer::handleDecrypt(const httplib::Request& req, httplib::Response& re
         }
         
         // Get required parameters
-        if (!request.contains("ciphertext") || !request.contains("key") || !request.contains("iv") || !request.contains("tag")) {
+        if (!request.contains("ciphertext") || !request.contains("password")) {
             res.status = 400;
-            res.set_content(errorResponse(400, "Missing required fields: ciphertext, key, iv, tag"), "application/json");
+            res.set_content(errorResponse(400, "Missing required fields: ciphertext, password"), "application/json");
             return;
         }
         
-        std::vector<uint8_t> ciphertext = hexDecode(request["ciphertext"].get<std::string>());
-        std::vector<uint8_t> key = hexDecode(request["key"].get<std::string>());
-        std::vector<uint8_t> iv = hexDecode(request["iv"].get<std::string>());
-        std::vector<uint8_t> tag = hexDecode(request["tag"].get<std::string>());
+        std::vector<uint8_t> pqeFile = hexDecode(request["ciphertext"].get<std::string>());
+        std::string password = request["password"].get<std::string>();
         
-        // Validate key size
-        if (key.size() != 16 && key.size() != 24 && key.size() != 32) {
+        // Validate .pqe file structure size (32 salt + 12 iv + 16 tag = 60 bytes minimum header)
+        if (pqeFile.size() < 60) {
             res.status = 400;
-            res.set_content(errorResponse(400, "Key must be 16, 24, or 32 bytes (128, 192, or 256 bits)"), "application/json");
+            res.set_content(errorResponse(400, "Invalid .pqe file: too small"), "application/json");
             return;
         }
+        
+        // Extract components
+        std::vector<uint8_t> salt(pqeFile.begin(), pqeFile.begin() + 32);
+        std::vector<uint8_t> iv(pqeFile.begin() + 32, pqeFile.begin() + 44);
+        std::vector<uint8_t> tag(pqeFile.begin() + 44, pqeFile.begin() + 60);
+        std::vector<uint8_t> actual_ciphertext(pqeFile.begin() + 60, pqeFile.end());
+        
+        // Derive 32-byte key
+        std::vector<uint8_t> key = KeyGenerator::deriveKey(password, salt, 32);
         
         // Decrypt
-        std::vector<uint8_t> plaintext = Encryptor::decrypt(ciphertext, key, iv, tag);
+        std::vector<uint8_t> plaintext = Encryptor::decrypt(actual_ciphertext, key, iv, tag);
         
         nlohmann::json response;
         response["status"] = "ok";
         response["data"] = hexEncode(plaintext);
         response["plaintext"] = hexEncode(plaintext);
+        response["iv"] = hexEncode(iv);
+        response["tag"] = hexEncode(tag);
+        response["key"] = hexEncode(key);
         response["key_size"] = key.size() * 8;
         
         res.set_content(response.dump(2), "application/json");
