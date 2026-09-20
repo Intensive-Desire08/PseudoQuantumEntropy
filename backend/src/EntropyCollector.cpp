@@ -1,3 +1,4 @@
+#include "Logger.h"
 #include "EntropyCollector.h"
 #include "entropy/SerialEntropySource.h"
 #include "entropy/OpenSSLEntropySource.h"
@@ -41,7 +42,7 @@ std::vector<std::string> EntropyCollector::detectSources() {
         }
     } catch (const std::exception& e) {
         hardwareAvailable = false;
-        std::cout << "[EntropyCollector] Hardware not detected: " << e.what() << std::endl;
+        { std::stringstream ss; ss << "[EntropyCollector] Hardware not detected: " << e.what(); LOG_INFO(ss.str()); }
     }
     
     std::cout << "[EntropyCollector] Detected sources: ";
@@ -59,7 +60,7 @@ bool EntropyCollector::initialize(
     size_t bufferSize) {
     
     if (initialized) {
-        std::cout << "[EntropyCollector] Already initialized" << std::endl;
+        { std::stringstream ss; ss << "[EntropyCollector] Already initialized"; LOG_INFO(ss.str()); }
         return true;
     }
     
@@ -72,11 +73,11 @@ bool EntropyCollector::initialize(
     
     // Try hardware first
     if (hardwareAvailable) {
-        std::cout << "[EntropyCollector] Attempting to initialize hardware source..." << std::endl;
+        { std::stringstream ss; ss << "[EntropyCollector] Attempting to initialize hardware source..."; LOG_INFO(ss.str()); }
         if (initializeHardware(port, baudRate)) {
             if (startPool(bufferSize)) {
                 initialized = true;
-                std::cout << "[EntropyCollector] Initialized with hardware source: " << activeSourceName << std::endl;
+                { std::stringstream ss; ss << "[EntropyCollector] Initialized with hardware source: " << activeSourceName; LOG_INFO(ss.str()); }
                 
                 // Start monitor loop to detect disconnects and reconnects
                 monitorRunning = true;
@@ -87,11 +88,11 @@ bool EntropyCollector::initialize(
     }
     
     // Fallback to OpenSSL
-    std::cout << "[EntropyCollector] Hardware unavailable, falling back to OpenSSL..." << std::endl;
+    { std::stringstream ss; ss << "[EntropyCollector] Hardware unavailable, falling back to OpenSSL..."; LOG_INFO(ss.str()); }
     if (initializeOpenSSL()) {
         if (startPool(bufferSize)) {
             initialized = true;
-            std::cout << "[EntropyCollector] Initialized with OpenSSL fallback" << std::endl;
+            { std::stringstream ss; ss << "[EntropyCollector] Initialized with OpenSSL fallback"; LOG_INFO(ss.str()); }
             
             // Start monitor loop
             monitorRunning = true;
@@ -100,7 +101,7 @@ bool EntropyCollector::initialize(
         }
     }
     
-    std::cerr << "[EntropyCollector] Failed to initialize any entropy source!" << std::endl;
+    { std::stringstream ss; ss << "[EntropyCollector] Failed to initialize any entropy source!"; LOG_ERROR(ss.str()); }
     return false;
 }
 
@@ -111,7 +112,7 @@ bool EntropyCollector::initializeWithSource(
     size_t bufferSize) {
     
     if (initialized) {
-        std::cout << "[EntropyCollector] Already initialized" << std::endl;
+        { std::stringstream ss; ss << "[EntropyCollector] Already initialized"; LOG_INFO(ss.str()); }
         return true;
     }
     
@@ -126,22 +127,22 @@ bool EntropyCollector::initializeWithSource(
     } else if (sourceType == "openssl") {
         success = initializeOpenSSL();
     } else {
-        std::cerr << "[EntropyCollector] Unknown source type: " << sourceType << std::endl;
+        { std::stringstream ss; ss << "[EntropyCollector] Unknown source type: " << sourceType; LOG_ERROR(ss.str()); }
         return false;
     }
     
     if (!success) {
-        std::cerr << "[EntropyCollector] Failed to initialize " << sourceType << std::endl;
+        { std::stringstream ss; ss << "[EntropyCollector] Failed to initialize " << sourceType; LOG_ERROR(ss.str()); }
         return false;
     }
     
     if (!startPool(bufferSize)) {
-        std::cerr << "[EntropyCollector] Failed to start entropy pool" << std::endl;
+        { std::stringstream ss; ss << "[EntropyCollector] Failed to start entropy pool"; LOG_ERROR(ss.str()); }
         return false;
     }
     
     initialized = true;
-    std::cout << "[EntropyCollector] Initialized with " << sourceType << " source: " << activeSourceName << std::endl;
+    { std::stringstream ss; ss << "[EntropyCollector] Initialized with " << sourceType << " source: " << activeSourceName; LOG_INFO(ss.str()); }
     
     // Start monitor loop
     monitorRunning = true;
@@ -171,7 +172,7 @@ void EntropyCollector::shutdown() {
     activeSourceType = "none";
     activeSourceName = "none";
     
-    std::cout << "[EntropyCollector] Shutdown complete" << std::endl;
+    { std::stringstream ss; ss << "[EntropyCollector] Shutdown complete"; LOG_INFO(ss.str()); }
 }
 
 std::vector<uint8_t> EntropyCollector::getEntropy(size_t numBytes) {
@@ -291,7 +292,7 @@ bool EntropyCollector::initializeHardware(const std::string& port, unsigned int 
             return true;
         }
     } catch (const std::exception& e) {
-        std::cerr << "[EntropyCollector] Hardware initialization error: " << e.what() << std::endl;
+        { std::stringstream ss; ss << "[EntropyCollector] Hardware initialization error: " << e.what(); LOG_ERROR(ss.str()); }
     }
     
     return false;
@@ -309,7 +310,7 @@ bool EntropyCollector::initializeOpenSSL() {
             return true;
         }
     } catch (const std::exception& e) {
-        std::cerr << "[EntropyCollector] OpenSSL initialization error: " << e.what() << std::endl;
+        { std::stringstream ss; ss << "[EntropyCollector] OpenSSL initialization error: " << e.what(); LOG_ERROR(ss.str()); }
     }
     
     return false;
@@ -331,7 +332,7 @@ bool EntropyCollector::startPool(size_t bufferSize) {
             return true;
         }
     } catch (const std::exception& e) {
-        std::cerr << "[EntropyCollector] Pool start error: " << e.what() << std::endl;
+        { std::stringstream ss; ss << "[EntropyCollector] Pool start error: " << e.what(); LOG_ERROR(ss.str()); }
     }
     
     entropyPool.reset();
@@ -364,7 +365,7 @@ void EntropyCollector::sourceMonitorLoop() {
             }
 
             if (!isAvail) {
-                std::cout << "[EntropyCollector] Hardware source disconnected! Falling back to OpenSSL..." << std::endl;
+                { std::stringstream ss; ss << "[EntropyCollector] Hardware source disconnected! Falling back to OpenSSL..."; LOG_INFO(ss.str()); }
                 
                 // Clean up disconnected hardware source to close the serial port handle
                 if (entropySource) {
@@ -379,7 +380,7 @@ void EntropyCollector::sourceMonitorLoop() {
                     if (entropyPool) {
                         entropyPool->setSource(entropySource);
                     }
-                    std::cout << "[EntropyCollector] Successfully switched to OpenSSL fallback" << std::endl;
+                    { std::stringstream ss; ss << "[EntropyCollector] Successfully switched to OpenSSL fallback"; LOG_INFO(ss.str()); }
                 }
             }
         } else if (activeSourceType == "openssl") {
@@ -389,7 +390,7 @@ void EntropyCollector::sourceMonitorLoop() {
                 try {
                     auto testSource = std::make_shared<SerialEntropySource>(port, baudRate, 500);
                     if (testSource->initialize()) {
-                        std::cout << "[EntropyCollector] Hardware source reconnected! Switching back..." << std::endl;
+                        { std::stringstream ss; ss << "[EntropyCollector] Hardware source reconnected! Switching back..."; LOG_INFO(ss.str()); }
                         entropySource = testSource;
                         activeSourceType = "hardware";
                         activeSourceName = testSource->getSourceName();

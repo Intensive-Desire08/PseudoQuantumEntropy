@@ -1,4 +1,4 @@
-# CONTEXT.md — PseudoQuantum Entropy Service
+**NOTE: The executable is located at .\build\bin\PseudoQuantumEntropy.exe**\n\n# CONTEXT.md — PseudoQuantum Entropy Service
 
 > **Version:** 0.2 alpha build
 > **Last Updated:** 2026-09-20

@@ -1,3 +1,4 @@
+#include "../Logger.h"
 #include "SerialEntropySource.h"
 #include <iostream>
 #include <chrono>
@@ -36,7 +37,7 @@ bool SerialEntropySource::initialize() {
     std::lock_guard<std::mutex> lock(mutex);
 
 #if !PQT_HAS_BOOST_ASIO
-    std::cerr << "[SerialEntropySource] Boost.Asio is unavailable; hardware serial entropy is disabled" << std::endl;
+    { std::stringstream ss; ss << "[SerialEntropySource] Boost.Asio is unavailable; hardware serial entropy is disabled"; LOG_ERROR(ss.str()); }
     available = false;
     initialized = true;
     return false;
@@ -70,9 +71,9 @@ bool SerialEntropySource::initialize() {
         available = testConnection();
         
         if (available) {
-            std::cout << "[SerialEntropySource] Connected to ESP32 on " << portName << std::endl;
+            { std::stringstream ss; ss << "[SerialEntropySource] Connected to ESP32 on " << portName; LOG_INFO(ss.str()); }
         } else {
-            std::cout << "[SerialEntropySource] Warning: No response from ESP32 on " << portName << std::endl;
+            { std::stringstream ss; ss << "[SerialEntropySource] Warning: No response from ESP32 on " << portName; LOG_INFO(ss.str()); }
             // Still mark as initialized but not available
         }
         
@@ -81,7 +82,7 @@ bool SerialEntropySource::initialize() {
         
     } catch (const std::exception& e) {
         // Suppress terminal output for continuous polling when disconnected
-        // std::cerr << "[SerialEntropySource] Failed to open port " << portName << ": " << e.what() << std::endl;
+        // { std::stringstream ss; ss << "[SerialEntropySource] Failed to open port " << portName << ": " << e.what(); LOG_ERROR(ss.str()); }
         available = false;
         initialized = true; // Still mark as initialized so we can fallback
         return false;
@@ -104,9 +105,9 @@ void SerialEntropySource::shutdown() {
             serialPort.cancel(ec);
             ioContext.poll();
             serialPort.close(ec);
-            std::cout << "[SerialEntropySource] Serial port closed" << std::endl;
+            { std::stringstream ss; ss << "[SerialEntropySource] Serial port closed"; LOG_INFO(ss.str()); }
         } catch (const std::exception& e) {
-            std::cerr << "[SerialEntropySource] Error closing port: " << e.what() << std::endl;
+            { std::stringstream ss; ss << "[SerialEntropySource] Error closing port: " << e.what(); LOG_ERROR(ss.str()); }
         }
     }
     available = false;
@@ -233,7 +234,7 @@ bool SerialEntropySource::testConnection() {
         // ESP32 continuously outputs entropy, so just try to sync
         return syncToMarker();
     } catch (const std::exception& e) {
-        std::cerr << "[SerialEntropySource] Connection test failed: " << e.what() << std::endl;
+        { std::stringstream ss; ss << "[SerialEntropySource] Connection test failed: " << e.what(); LOG_ERROR(ss.str()); }
         return false;
     }
 #endif

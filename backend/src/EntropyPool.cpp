@@ -1,3 +1,4 @@
+#include "Logger.h"
 #include "EntropyPool.h"
 #include "entropy/IEntropySource.h"
 #include <iostream>
@@ -37,7 +38,7 @@ bool EntropyPool::start() {
     }
     
     if (!entropySource || !entropySource->isAvailable()) {
-        std::cerr << "[EntropyPool] Cannot start: entropy source not available" << std::endl;
+        { std::stringstream ss; ss << "[EntropyPool] Cannot start: entropy source not available"; LOG_ERROR(ss.str()); }
         return false;
     }
     
@@ -78,7 +79,7 @@ void EntropyPool::stop() {
         collectorThread.join();
     }
     
-    std::cout << "[EntropyPool] Stopped" << std::endl;
+    { std::stringstream ss; ss << "[EntropyPool] Stopped"; LOG_INFO(ss.str()); }
 }
 
 std::vector<uint8_t> EntropyPool::getEntropy(size_t numBytes) {
@@ -185,7 +186,7 @@ void EntropyPool::setSource(std::shared_ptr<IEntropySource> source) {
     std::lock_guard<std::mutex> lock(mutex);
     entropySource = source;
     currentSpeed.store(0.0);
-    std::cout << "[EntropyPool] Source changed to: " << entropySource->getSourceName() << std::endl;
+    { std::stringstream ss; ss << "[EntropyPool] Source changed to: " << entropySource->getSourceName(); LOG_INFO(ss.str()); }
 
     // Wake up collector thread immediately to switch to new source
     refillCV.notify_all();
@@ -198,7 +199,7 @@ std::string EntropyPool::getSourceName() const {
 }
 
 void EntropyPool::collectionThread() {
-    std::cout << "[EntropyPool] Collection thread started" << std::endl;
+    { std::stringstream ss; ss << "[EntropyPool] Collection thread started"; LOG_INFO(ss.str()); }
     
     while (running) {
         // Check if refill is needed
@@ -261,7 +262,7 @@ void EntropyPool::collectionThread() {
         }
     }
     
-    std::cout << "[EntropyPool] Collection thread stopped" << std::endl;
+    { std::stringstream ss; ss << "[EntropyPool] Collection thread stopped"; LOG_INFO(ss.str()); }
 }
 
 bool EntropyPool::collectEntropy() {
@@ -270,7 +271,7 @@ bool EntropyPool::collectEntropy() {
     }
     
     if (!entropySource->isAvailable()) {
-        std::cerr << "[EntropyPool] Entropy source not available" << std::endl;
+        { std::stringstream ss; ss << "[EntropyPool] Entropy source not available"; LOG_ERROR(ss.str()); }
         return false;
     }
     
@@ -296,7 +297,7 @@ bool EntropyPool::collectEntropy() {
         return false;
         
     } catch (const std::exception& e) {
-        std::cerr << "[EntropyPool] Error collecting entropy: " << e.what() << std::endl;
+        { std::stringstream ss; ss << "[EntropyPool] Error collecting entropy: " << e.what(); LOG_ERROR(ss.str()); }
         return false;
     }
 }

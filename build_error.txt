@@ -1,0 +1,197 @@
+[1/3] Building CXX object backend/CMakeFiles/PseudoQuantumEntropy.dir/src/main.cpp.obj
+FAILED: backend/CMakeFiles/PseudoQuantumEntropy.dir/src/main.cpp.obj 
+C:\Games\mingw64\bin\c++.exe -DCPPHTTPLIB_OPENSSL_SUPPORT -DNOMINMAX -DWIN32_LEAN_AND_MEAN -D_CRT_SECURE_NO_WARNINGS -D_WIN32_WINNT=0x0A00 -IC:/Users/ajaya/Desktop/AJAY/Projects/PseudoQuantumEntropy/backend/include -IC:/Users/ajaya/Desktop/AJAY/Projects/PseudoQuantumEntropy/backend/src -IC:/Users/ajaya/Desktop/AJAY/Projects/PseudoQuantumEntropy/build/backend -IC:/Users/ajaya/Desktop/AJAY/Projects/PseudoQuantumEntropy/build/backend/include -isystem C:/Users/ajaya/Desktop/AJAY/Projects/PseudoQuantumEntropy/build/vcpkg_installed/x64-mingw-dynamic/include -O3 -DNDEBUG -std=c++17 -Wall -Wextra -Wpedantic -Wshadow -Wnon-virtual-dtor -Wold-style-cast -Wcast-align -Wunused -Woverloaded-virtual -Wconversion -Wsign-conversion -Wnull-dereference -Wdouble-promotion -Wformat=2 -Wno-unused-parameter -O3 -DNDEBUG -MD -MT backend/CMakeFiles/PseudoQuantumEntropy.dir/src/main.cpp.obj -MF backend\CMakeFiles\PseudoQuantumEntropy.dir\src\main.cpp.obj.d -o backend/CMakeFiles/PseudoQuantumEntropy.dir/src/main.cpp.obj -c C:/Users/ajaya/Desktop/AJAY/Projects/PseudoQuantumEntropy/backend/src/main.cpp
+In file included from C:/Users/ajaya/Desktop/AJAY/Projects/PseudoQuantumEntropy/backend/src/WebServer.h:12,
+                 from C:/Users/ajaya/Desktop/AJAY/Projects/PseudoQuantumEntropy/backend/src/main.cpp:4:
+C:/Users/ajaya/Desktop/AJAY/Projects/PseudoQuantumEntropy/backend/include/httplib.h: In function 'unsigned char httplib::detail::case_ignore::to_lower(int)':
+C:/Users/ajaya/Desktop/AJAY/Projects/PseudoQuantumEntropy/backend/include/httplib.h:595:37: warning: use of old-style cast to 'char' [-Wold-style-cast]
+  595 |   return table[(unsigned char)(char)c];
+      |                                     ^
+      |                               -------
+      |                               static_cast<char> (c)
+C:/Users/ajaya/Desktop/AJAY/Projects/PseudoQuantumEntropy/backend/include/httplib.h:595:37: warning: use of old-style cast to 'unsigned char' [-Wold-style-cast]
+  595 |   return table[(unsigned char)(char)c];
+      |                                     ^
+      |                -
+      |                static_cast<  -
+      |                              > (     )
+C:/Users/ajaya/Desktop/AJAY/Projects/PseudoQuantumEntropy/backend/include/httplib.h: In function 'std::wstring httplib::detail::u8string_to_wstring(const char*)':
+C:/Users/ajaya/Desktop/AJAY/Projects/PseudoQuantumEntropy/backend/include/httplib.h:3433:13: warning: conversion to 'std::__cxx11::basic_string<wchar_t>::size_type' {aka 'long long unsigned int'} from 'int' may change the sign of the result [-Wsign-conversion]
+ 3433 |   ws.resize(wlen);
+      |             ^~~~
+C:/Users/ajaya/Desktop/AJAY/Projects/PseudoQuantumEntropy/backend/include/httplib.h: In function 'void httplib::detail::set_nonblocking(socket_t, bool)':
+C:/Users/ajaya/Desktop/AJAY/Projects/PseudoQuantumEntropy/backend/include/httplib.h:6733:21: warning: signed conversion from 'long unsigned int' to 'long int' changes value from '2147772030' to '-2147195266' [-Wsign-conversion]
+ 6733 |   ioctlsocket(sock, FIONBIO, &flags);
+      |                     ^~~~~~~
+C:/Users/ajaya/Desktop/AJAY/Projects/PseudoQuantumEntropy/backend/include/httplib.h: In function 'bool httplib::tls::load_system_certs(ctx_t)':
+C:/Users/ajaya/Desktop/AJAY/Projects/PseudoQuantumEntropy/backend/include/httplib.h:17757:40: warning: passing NULL to non-pointer argument 1 of 'void* CertOpenSystemStoreW(HCRYPTPROV_LEGACY, LPCWSTR)' [-Wconversion-null]
+17757 |     auto hStore = CertOpenSystemStoreW(NULL, store_name);
+      |                                        ^~~~
+In file included from C:/Users/ajaya/Desktop/AJAY/Projects/PseudoQuantumEntropy/backend/include/httplib.h:382:
+C:/Games/mingw64/x86_64-w64-mingw32/include/wincrypt.h:4751:69: note: declared here
+ 4751 |   WINIMPM HCERTSTORE WINAPI CertOpenSystemStoreW (HCRYPTPROV_LEGACY hProv, LPCWSTR szSubsystemProtocol);
+      |                                                   ~~~~~~~~~~~~~~~~~~^~~~~
+C:/Users/ajaya/Desktop/AJAY/Projects/PseudoQuantumEntropy/backend/include/httplib.h:17764:54: warning: conversion to 'long int' from 'DWORD' {aka 'long unsigned int'} may change the sign of the result [-Wsign-conversion]
+17764 |       auto x509 = d2i_X509(nullptr, &data, pContext->cbCertEncoded);
+      |                                            ~~~~~~~~~~^~~~~~~~~~~~~
+C:/Users/ajaya/Desktop/AJAY/Projects/PseudoQuantumEntropy/backend/include/httplib.h: In function 'bool httplib::tls::get_cert_validity(cert_t, time_t&, time_t&)':
+C:/Users/ajaya/Desktop/AJAY/Projects/PseudoQuantumEntropy/backend/include/httplib.h:18316:32: warning: use of old-style cast to 'time_t' {aka 'long long int'} [-Wold-style-cast]
+18316 |   not_before = 86400 * (time_t)pday + psec;
+      |                                ^~~~
+      |                        ------------
+      |                        static_cast<time_t> (pday)
+C:/Users/ajaya/Desktop/AJAY/Projects/PseudoQuantumEntropy/backend/include/httplib.h:18319:31: warning: use of old-style cast to 'time_t' {aka 'long long int'} [-Wold-style-cast]
+18319 |   not_after = 86400 * (time_t)pday + psec;
+      |                               ^~~~
+      |                       ------------
+      |                       static_cast<time_t> (pday)
+C:/Users/ajaya/Desktop/AJAY/Projects/PseudoQuantumEntropy/backend/src/main.cpp: In function 'Logger::Level {anonymous}::parseLogLevel(const std::string&)':
+C:/Users/ajaya/Desktop/AJAY/Projects/PseudoQuantumEntropy/backend/src/main.cpp:64:49: error: 'ERROR' is not a member of 'Logger::Level'; did you mean 'ERR'?
+   64 |     if (level == "ERROR") return Logger::Level::ERROR;
+      |                                                 ^~~~~
+      |                                                 ERR
+C:/Users/ajaya/Desktop/AJAY/Projects/PseudoQuantumEntropy/backend/include/httplib.h: In instantiation of 'httplib::detail::from_chars_result<T> httplib::detail::from_chars(const char*, const char*, T&, int) [with T = long long unsigned int]':
+C:/Users/ajaya/Desktop/AJAY/Projects/PseudoQuantumEntropy/backend/include/httplib.h:3282:26:   required from here
+ 3282 |       auto r = from_chars(s.data(), s.data() + s.size(), val);
+      |                ~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+C:/Users/ajaya/Desktop/AJAY/Projects/PseudoQuantumEntropy/backend/include/httplib.h:704:53: warning: conversion to 'long long unsigned int' from 'int' may change the sign of the result [-Wsign-conversion]
+  704 |     if (result > ((std::numeric_limits<T>::max)() - digit) / base) {
+      |                                                     ^~~~~
+C:/Users/ajaya/Desktop/AJAY/Projects/PseudoQuantumEntropy/backend/include/httplib.h:704:62: warning: conversion to 'long long unsigned int' from 'int' may change the sign of the result [-Wsign-conversion]
+  704 |     if (result > ((std::numeric_limits<T>::max)() - digit) / base) {
+      |                                                              ^~~~
+C:/Users/ajaya/Desktop/AJAY/Projects/PseudoQuantumEntropy/backend/include/httplib.h:707:23: warning: conversion to 'long long unsigned int' from 'int' may change the sign of the result [-Wsign-conversion]
+  707 |     result = result * base + digit;
+      |                       ^~~~
+C:/Users/ajaya/Desktop/AJAY/Projects/PseudoQuantumEntropy/backend/include/httplib.h:707:30: warning: conversion to 'long long unsigned int' from 'int' may change the sign of the result [-Wsign-conversion]
+  707 |     result = result * base + digit;
+      |                              ^~~~~
+C:/Users/ajaya/Desktop/AJAY/Projects/PseudoQuantumEntropy/backend/include/httplib.h: In instantiation of 'socket_t httplib::detail::create_socket(const std::string&, const std::string&, int, int, int, bool, bool, httplib::SocketOptions, BindOrConnect, time_t) [with BindOrConnect = create_client_socket(const std::string&, const std::string&, int, int, bool, bool, httplib::SocketOptions, time_t, time_t, time_t, time_t, time_t, time_t, const std::string&, httplib::Error&)::<lambda(socket_t, addrinfo&, bool&)>; socket_t = long long unsigned int; std::string = std::__cxx11::basic_string<char>; httplib::SocketOptions = std::function<void(long long unsigned int)>; time_t = long long int]':
+C:/Users/ajaya/Desktop/AJAY/Projects/PseudoQuantumEntropy/backend/include/httplib.h:6825:28:   required from here
+ 6825 |   auto sock = create_socket(
+      |               ~~~~~~~~~~~~~^
+ 6826 |       host, ip, port, address_family, 0, tcp_nodelay, ipv6_v6only,
+      |       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ 6827 |       std::move(socket_options),
+      |       ~~~~~~~~~~~~~~~~~~~~~~~~~~
+ 6828 |       [&](socket_t sock2, struct addrinfo &ai, bool &quit) -> bool {
+      |       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ 6829 |         if (!intf.empty()) {
+      |         ~~~~~~~~~~~~~~~~~~~~
+ 6830 | #ifdef USE_IF2IP
+      | ~~~~~~~~~~~~~~~~            
+ 6831 |           auto ip_from_if = if2ip(address_family, intf);
+      |           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ 6832 |           if (ip_from_if.empty()) { ip_from_if = intf; }
+      |           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ 6833 |           if (!bind_ip_address(sock2, ip_from_if)) {
+      |           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ 6834 |             error = Error::BindIPAddress;
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ 6835 |             return false;
+      |             ~~~~~~~~~~~~~   
+ 6836 |           }
+      |           ~                 
+ 6837 | #endif
+      | ~~~~~~                      
+ 6838 |         }
+      |         ~                   
+ 6839 | 
+      |                             
+ 6840 |         set_nonblocking(sock2, true);
+      |         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ 6841 | 
+      |                             
+ 6842 |         auto ret =
+      |         ~~~~~~~~~~          
+ 6843 |             ::connect(sock2, ai.ai_addr, static_cast<socklen_t>(ai.ai_addrlen));
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ 6844 | 
+      |                             
+ 6845 |         if (ret < 0) {
+      |         ~~~~~~~~~~~~~~      
+ 6846 |           if (is_connection_error()) {
+      |           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ 6847 |             error = Error::Connection;
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~
+ 6848 |             return false;
+      |             ~~~~~~~~~~~~~   
+ 6849 |           }
+      |           ~                 
+ 6850 |           error = wait_until_socket_is_ready(sock2, connection_timeout_sec,
+      |           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ 6851 |                                              connection_timeout_usec);
+      |                                              ~~~~~~~~~~~~~~~~~~~~~~~~~
+ 6852 |           if (error != Error::Success) {
+      |           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ 6853 |             if (error == Error::ConnectionTimeout) { quit = true; }
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ 6854 |             return false;
+      |             ~~~~~~~~~~~~~   
+ 6855 |           }
+      |           ~                 
+ 6856 |         }
+      |         ~                   
+ 6857 | 
+      |                             
+ 6858 |         set_nonblocking(sock2, false);
+      |         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ 6859 |         set_socket_opt_time(sock2, SOL_SOCKET, SO_RCVTIMEO, read_timeout_sec,
+      |         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ 6860 |                             read_timeout_usec);
+      |                             ~~~~~~~~~~~~~~~~~~~
+ 6861 |         set_socket_opt_time(sock2, SOL_SOCKET, SO_SNDTIMEO, write_timeout_sec,
+      |         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ 6862 |                             write_timeout_usec);
+      |                             ~~~~~~~~~~~~~~~~~~~~
+ 6863 | 
+      |                             
+ 6864 |         error = Error::Success;
+      |         ~~~~~~~~~~~~~~~~~~~~~~~
+ 6865 |         return true;
+      |         ~~~~~~~~~~~~        
+ 6866 |       },
+      |       ~~                    
+ 6867 |       connection_timeout_sec); // Pass DNS timeout
+      |       ~~~~~~~~~~~~~~~~~~~~~~~
+C:/Users/ajaya/Desktop/AJAY/Projects/PseudoQuantumEntropy/backend/include/httplib.h:6630:26: warning: conversion to 'size_t' {aka 'long long unsigned int'} from 'socklen_t' {aka 'int'} may change the sign of the result [-Wsign-conversion]
+ 6630 |       hints.ai_addrlen = static_cast<socklen_t>(
+      |                          ^~~~~~~~~~~~~~~~~~~~~~~
+ 6631 |           sizeof(addr) - sizeof(addr.sun_path) + addrlen);
+      |           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+C:/Users/ajaya/Desktop/AJAY/Projects/PseudoQuantumEntropy/backend/include/httplib.h: In instantiation of 'socket_t httplib::detail::create_socket(const std::string&, const std::string&, int, int, int, bool, bool, httplib::SocketOptions, BindOrConnect, time_t) [with BindOrConnect = httplib::Server::create_server_socket(const std::string&, int, int, httplib::SocketOptions) const::<lambda(socket_t, addrinfo&, bool&)>; socket_t = long long unsigned int; std::string = std::__cxx11::basic_string<char>; httplib::SocketOptions = std::function<void(long long unsigned int)>; time_t = long long int]':
+C:/Users/ajaya/Desktop/AJAY/Projects/PseudoQuantumEntropy/backend/include/httplib.h:12610:31:   required from here
+12610 |   return detail::create_socket(
+      |          ~~~~~~~~~~~~~~~~~~~~~^
+12611 |       host, std::string(), port, address_family_, socket_flags, tcp_nodelay_,
+      |       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+12612 |       ipv6_v6only_, std::move(socket_options),
+      |       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+12613 |       [&](socket_t sock, struct addrinfo &ai, bool & /*quit*/) -> bool {
+      |       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+12614 |         if (::bind(sock, ai.ai_addr, static_cast<socklen_t>(ai.ai_addrlen))) {
+      |         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+12615 |           output_error_log(Error::BindIPAddress, nullptr);
+      |           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+12616 |           return false;
+      |           ~~~~~~~~~~~~~        
+12617 |         }
+      |         ~                      
+12618 |         if (::listen(sock, CPPHTTPLIB_LISTEN_BACKLOG)) {
+      |         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+12619 |           output_error_log(Error::Listen, nullptr);
+      |           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+12620 |           return false;
+      |           ~~~~~~~~~~~~~        
+12621 |         }
+      |         ~                      
+12622 |         return true;
+      |         ~~~~~~~~~~~~           
+12623 |       });
+      |       ~~                       
+C:/Users/ajaya/Desktop/AJAY/Projects/PseudoQuantumEntropy/backend/include/httplib.h:6630:26: warning: conversion to 'size_t' {aka 'long long unsigned int'} from 'socklen_t' {aka 'int'} may change the sign of the result [-Wsign-conversion]
+ 6630 |       hints.ai_addrlen = static_cast<socklen_t>(
+      |                          ^~~~~~~~~~~~~~~~~~~~~~~
+ 6631 |           sizeof(addr) - sizeof(addr.sun_path) + addrlen);
+      |           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ninja: build stopped: subcommand failed.

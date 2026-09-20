@@ -61,7 +61,7 @@ Logger::Level parseLogLevel(const std::string& level) {
     if (level == "DEBUG") return Logger::Level::DEBUG;
     if (level == "INFO")  return Logger::Level::INFO;
     if (level == "WARN")  return Logger::Level::WARN;
-    if (level == "ERROR") return Logger::Level::ERROR;
+    if (level == "ERROR") return Logger::Level::ERR;
     if (level == "FATAL") return Logger::Level::FATAL;
     if (level == "OFF")   return Logger::Level::OFF;
     return Logger::Level::INFO;
