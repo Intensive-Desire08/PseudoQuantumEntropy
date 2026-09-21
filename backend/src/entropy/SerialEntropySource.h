@@ -165,6 +165,26 @@ public:
     bool hasIncomingData();
 
     /**
+     * @brief Whitening algorithm selection
+     */
+    enum class WhiteningAlgorithm {
+        LFSR,   ///< 32-bit Galois LFSR polynomial XOR (1:1 throughput, ~14.7 KB/s)
+        SHA256  ///< NIST SP 800-90B SHA-256 block extraction (2:1 ratio, ~7.3 KB/s)
+    };
+
+    /**
+     * @brief Set the active whitening algorithm
+     * @param algo WhiteningAlgorithm::LFSR or WhiteningAlgorithm::SHA256
+     */
+    void setWhiteningAlgorithm(WhiteningAlgorithm algo);
+
+    /**
+     * @brief Get the active whitening algorithm
+     * @return WhiteningAlgorithm Current algorithm
+     */
+    WhiteningAlgorithm getWhiteningAlgorithm() const;
+
+    /**
      * @brief Resume entropy reception after a pause
      * @return true if sync lock succeeded and new bytes are ready
      */
@@ -207,11 +227,28 @@ private:
     uint8_t readEntropyPacket();
 
     /**
-     * @brief Apply 32-bit Galois LFSR whitening to a raw entropy byte
-     * @param rawByte Raw byte received from hardware
-     * @return uint8_t Whitened entropy byte
+     * @brief Apply 32-bit Galois LFSR whitening to a 64-byte raw payload (1:1 byte mapping)
+     * @param rawPayload Pointer to 64 raw bytes received from hardware
+     * @param outPayload Destination buffer for whitened bytes (64 bytes)
+     * @param outLength Reference receiving number of output bytes generated (64 bytes)
      */
-    uint8_t whitenByte(uint8_t rawByte);
+    void whitenPayloadLFSR(const uint8_t* rawPayload, uint8_t* outPayload, size_t& outLength);
+
+    /**
+     * @brief Apply SHA-256 cryptographic whitening to a 64-byte raw payload (NIST SP 800-90B 2:1 extraction)
+     * @param rawPayload Pointer to 64 raw bytes received from hardware
+     * @param outPayload Destination buffer for conditioned bytes (at least 32 bytes)
+     * @param outLength Reference receiving number of output bytes generated (32 bytes)
+     */
+    void whitenPayloadSHA256(const uint8_t* rawPayload, uint8_t* outPayload, size_t& outLength);
+
+    /**
+     * @brief Dispatch whitening to the active algorithm (LFSR or SHA256)
+     * @param rawPayload Pointer to 64 raw bytes received from hardware
+     * @param outPayload Destination buffer for whitened bytes
+     * @param outLength Reference receiving number of output bytes generated
+     */
+    void whitenPayload(const uint8_t* rawPayload, uint8_t* outPayload, size_t& outLength);
 
     /**
      * @brief Write data to the serial port (for possible future commands)
@@ -237,10 +274,16 @@ private:
     std::atomic<size_t> bytesGenerated;
     mutable std::atomic<int64_t> lastByteReceivedTimeMs{0};
 
-    // 32-bit Galois LFSR whitening state (taps 32, 22, 2, 1)
-    uint32_t lfsrState;
+    // Whitening algorithm selection (defaults to LFSR to satisfy Gateway 12 KB/s minimum threshold)
+    WhiteningAlgorithm whiteningAlgorithm = WhiteningAlgorithm::LFSR;
+
+    // 32-bit Galois LFSR state (taps 32, 22, 2, 1)
+    uint32_t lfsrState = 0xACE1u;
     static constexpr uint32_t LFSR_POLYNOMIAL = 0x80200003u;
     static constexpr uint32_t LFSR_INITIAL_SEED = 0xACE1u;
+
+    // SHA-256 Whitening Output Size (NIST SP 800-90B 2:1 extraction: 64 raw bytes -> 32 conditioned bytes)
+    static constexpr size_t SHA256_WHITENED_BYTES = 32;
 
     // Thread safety
     mutable std::mutex mutex;

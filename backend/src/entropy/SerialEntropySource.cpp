@@ -8,6 +8,8 @@
 #include <windows.h>
 #endif
 
+#include <openssl/sha.h>
+
 #if PQT_HAS_BOOST_ASIO
     #include <array>
     #include <boost/asio/read.hpp>
@@ -28,7 +30,18 @@ SerialEntropySource::SerialEntropySource(const std::string& port, unsigned int b
     , available(false)
     , bytesGenerated(0)
     , lastByteReceivedTimeMs(0)
+    , whiteningAlgorithm(WhiteningAlgorithm::LFSR)
     , lfsrState(LFSR_INITIAL_SEED) {
+}
+
+void SerialEntropySource::setWhiteningAlgorithm(WhiteningAlgorithm algo) {
+    std::lock_guard<std::mutex> lock(mutex);
+    whiteningAlgorithm = algo;
+}
+
+SerialEntropySource::WhiteningAlgorithm SerialEntropySource::getWhiteningAlgorithm() const {
+    std::lock_guard<std::mutex> lock(mutex);
+    return whiteningAlgorithm;
 }
 
 SerialEntropySource::~SerialEntropySource() {
@@ -382,11 +395,12 @@ bool SerialEntropySource::syncToMarker() {
             uint8_t b2 = readByte();
             if (b2 == SYNC_MARKER_2) {
                 // Found 0xAA 0x55, read payload into packetBuffer to lock first packet
+                uint8_t rawPayload[CHUNK_PAYLOAD_SIZE];
                 for (size_t i = 0; i < CHUNK_PAYLOAD_SIZE; ++i) {
-                    packetBuffer[i] = whitenByte(readByte());
+                    rawPayload[i] = readByte();
                 }
+                whitenPayload(rawPayload, packetBuffer.data(), packetTail);
                 packetHead = 0;
-                packetTail = CHUNK_PAYLOAD_SIZE;
                 return true;
             }
         }
@@ -499,12 +513,12 @@ uint8_t SerialEntropySource::readEntropyPacket() {
             uint8_t b2 = readByte();
             if (b2 == SYNC_MARKER_2) {
                 // Locked frame sync: read full 64-byte payload
+                uint8_t rawPayload[CHUNK_PAYLOAD_SIZE];
                 for (size_t i = 0; i < CHUNK_PAYLOAD_SIZE; ++i) {
-                    uint8_t rawByte = readByte();
-                    packetBuffer[i] = whitenByte(rawByte);
+                    rawPayload[i] = readByte();
                 }
+                whitenPayload(rawPayload, packetBuffer.data(), packetTail);
                 packetHead = 0;
-                packetTail = CHUNK_PAYLOAD_SIZE;
                 bytesGenerated++;
                 return packetBuffer[packetHead++];
             }
@@ -512,12 +526,12 @@ uint8_t SerialEntropySource::readEntropyPacket() {
             if (b2 == SYNC_MARKER_1) {
                 uint8_t b3 = readByte();
                 if (b3 == SYNC_MARKER_2) {
+                    uint8_t rawPayload[CHUNK_PAYLOAD_SIZE];
                     for (size_t i = 0; i < CHUNK_PAYLOAD_SIZE; ++i) {
-                        uint8_t rawByte = readByte();
-                        packetBuffer[i] = whitenByte(rawByte);
+                        rawPayload[i] = readByte();
                     }
+                    whitenPayload(rawPayload, packetBuffer.data(), packetTail);
                     packetHead = 0;
-                    packetTail = CHUNK_PAYLOAD_SIZE;
                     bytesGenerated++;
                     return packetBuffer[packetHead++];
                 }
@@ -527,15 +541,31 @@ uint8_t SerialEntropySource::readEntropyPacket() {
 #endif
 }
 
-uint8_t SerialEntropySource::whitenByte(uint8_t rawByte) {
-    uint8_t mask = 0;
-    for (int i = 0; i < 8; ++i) {
-        uint32_t lsb = lfsrState & 1;
-        lfsrState >>= 1;
-        if (lsb) {
-            lfsrState ^= LFSR_POLYNOMIAL;
+void SerialEntropySource::whitenPayloadLFSR(const uint8_t* rawPayload, uint8_t* outPayload, size_t& outLength) {
+    for (size_t i = 0; i < CHUNK_PAYLOAD_SIZE; ++i) {
+        uint8_t mask = 0;
+        for (int bit = 0; bit < 8; ++bit) {
+            uint32_t lsb = lfsrState & 1;
+            lfsrState >>= 1;
+            if (lsb) {
+                lfsrState ^= LFSR_POLYNOMIAL;
+            }
+            mask = static_cast<uint8_t>((mask << 1) | lsb);
         }
-        mask = static_cast<uint8_t>((mask << 1) | lsb);
+        outPayload[i] = static_cast<uint8_t>(rawPayload[i] ^ mask);
     }
-    return static_cast<uint8_t>(rawByte ^ mask);
+    outLength = CHUNK_PAYLOAD_SIZE;
+}
+
+void SerialEntropySource::whitenPayloadSHA256(const uint8_t* rawPayload, uint8_t* outPayload, size_t& outLength) {
+    SHA256(rawPayload, CHUNK_PAYLOAD_SIZE, outPayload);
+    outLength = SHA256_WHITENED_BYTES;
+}
+
+void SerialEntropySource::whitenPayload(const uint8_t* rawPayload, uint8_t* outPayload, size_t& outLength) {
+    if (whiteningAlgorithm == WhiteningAlgorithm::SHA256) {
+        whitenPayloadSHA256(rawPayload, outPayload, outLength);
+    } else {
+        whitenPayloadLFSR(rawPayload, outPayload, outLength);
+    }
 }
