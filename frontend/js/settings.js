@@ -7,6 +7,7 @@ window.PQEPage.settings = function () {
   const portInput = document.getElementById('settings-port');
   const baudInput = document.getElementById('settings-baud');
   const sourceInput = document.getElementById('settings-source');
+  const whiteningInput = document.getElementById('settings-whitening');
   const status = document.getElementById('settings-status');
   const reseedBtn = document.getElementById('btn-reseed-pool');
 
@@ -22,8 +23,9 @@ window.PQEPage.settings = function () {
 
     const payload = {
       port: portInput ? portInput.value.trim() : '',
-      baud_rate: baudInput ? (Number(baudInput.value) || 115200) : 115200,
-      source_type: sourceInput ? sourceInput.value.trim() : '',
+      baud_rate: baudInput ? (Number(baudInput.value) || 921600) : 921600,
+      source_type: sourceInput ? sourceInput.value.trim() : 'hardware',
+      whitening: whiteningInput ? whiteningInput.value.trim() : 'lfsr',
       reseed: false
     };
 
@@ -32,8 +34,9 @@ window.PQEPage.settings = function () {
     setStatus('Applying updated configuration parameters...', '');
 
     try {
-      await window.PQEApi.settings(payload);
-      setStatus('Settings updated and persisted successfully.', 'success');
+      const res = await window.PQEApi.settings(payload);
+      const msg = res?.message || 'Settings updated and persisted successfully.';
+      setStatus(msg, 'success');
     } catch (error) {
       setStatus(`Configuration update error: ${error.message}`, 'danger');
     } finally {
@@ -62,9 +65,16 @@ window.PQEPage.settings = function () {
   // Load initial settings asynchronously
   window.PQEApi.getSettings()
     .then((settings) => {
-      if (portInput) portInput.value = settings.port || settings.serial_port || '';
-      if (baudInput) baudInput.value = settings.baud_rate || settings.baud || 115200;
-      if (sourceInput) sourceInput.value = settings.source_type || settings.source_name || settings.source || '';
+      if (portInput) portInput.value = settings.port || settings.serial_port || 'COM3';
+      if (baudInput) baudInput.value = settings.baud_rate || settings.baud || 921600;
+      if (sourceInput) {
+        const currentSource = (settings.preferred_source || settings.source_type || 'hardware').toLowerCase();
+        sourceInput.value = currentSource.includes('openssl') || currentSource.includes('software') ? 'openssl' : 'hardware';
+      }
+      if (whiteningInput) {
+        const currentWhitening = (settings.whitening || 'lfsr').toLowerCase();
+        whiteningInput.value = currentWhitening.includes('sha') ? 'sha256' : 'lfsr';
+      }
       setStatus('Active hardware and backend configuration loaded.', 'success');
     })
     .catch((error) => {

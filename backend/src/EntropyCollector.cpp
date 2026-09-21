@@ -298,6 +298,11 @@ bool EntropyCollector::initializeHardware(const std::string& port, unsigned int 
         hardwareSource = std::make_shared<SerialEntropySource>(port, baudRate);
         
         if (hardwareSource->initialize()) {
+            if (configuredWhitening == "sha256") {
+                hardwareSource->setWhiteningAlgorithm(SerialEntropySource::WhiteningAlgorithm::SHA256);
+            } else {
+                hardwareSource->setWhiteningAlgorithm(SerialEntropySource::WhiteningAlgorithm::LFSR);
+            }
             entropySource = hardwareSource;
             activeSourceType = "hardware";
             activeSourceName = hardwareSource->getSourceName();
@@ -336,21 +341,12 @@ bool EntropyCollector::startPool(size_t bufferSize) {
     }
     
     try {
-        entropyPool = std::make_unique<EntropyPool>(
-            entropySource,
-            bufferSize,
-            bufferSize / 2  // Refill at 50%
-        );
-        
-        if (entropyPool->start()) {
-            return true;
-        }
+        entropyPool = std::make_unique<EntropyPool>(entropySource, bufferSize, REFILL_THRESHOLD);
+        return entropyPool->start();
     } catch (const std::exception& e) {
-        { std::stringstream ss; ss << "[EntropyCollector] Pool start error: " << e.what(); LOG_ERROR(ss.str()); }
+        { std::stringstream ss; ss << "[EntropyCollector] Pool creation error: " << e.what(); LOG_ERROR(ss.str()); }
+        return false;
     }
-    
-    entropyPool.reset();
-    return false;
 }
 
 void EntropyCollector::cleanup() {
@@ -378,6 +374,11 @@ void EntropyCollector::sourceMonitorLoop() {
     while (monitorRunning) {
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
         if (!monitorRunning) break;
+
+        // If user manually forced OpenSSL mode in Settings, do not auto-switch to hardware
+        if (preferredSourceType == "openssl") {
+            continue;
+        }
 
         if (activeSourceType == "hardware") {
             bool isAvail = false;
@@ -428,6 +429,11 @@ void EntropyCollector::sourceMonitorLoop() {
                             entropyPool->resetSpeed();
                         }
                         { std::stringstream ss; ss << "[EntropyCollector] Hardware source resumed! Switching back..."; LOG_INFO(ss.str()); }
+                        if (configuredWhitening == "sha256") {
+                            hardwareSource->setWhiteningAlgorithm(SerialEntropySource::WhiteningAlgorithm::SHA256);
+                        } else {
+                            hardwareSource->setWhiteningAlgorithm(SerialEntropySource::WhiteningAlgorithm::LFSR);
+                        }
                         entropySource = hardwareSource;
                         activeSourceType = "hardware";
                         activeSourceName = hardwareSource->getSourceName();
@@ -450,6 +456,11 @@ void EntropyCollector::sourceMonitorLoop() {
                                 entropyPool->resetSpeed();
                             }
                             { std::stringstream ss; ss << "[EntropyCollector] Hardware reconnected! Switching back..."; LOG_INFO(ss.str()); }
+                            if (configuredWhitening == "sha256") {
+                                testSource->setWhiteningAlgorithm(SerialEntropySource::WhiteningAlgorithm::SHA256);
+                            } else {
+                                testSource->setWhiteningAlgorithm(SerialEntropySource::WhiteningAlgorithm::LFSR);
+                            }
                             hardwareSource = testSource;
                             entropySource = hardwareSource;
                             activeSourceType = "hardware";
@@ -468,4 +479,94 @@ void EntropyCollector::sourceMonitorLoop() {
             }
         }
     }
+}
+
+bool EntropyCollector::switchSourceType(const std::string& sourceType) {
+    std::string target = sourceType;
+    std::transform(target.begin(), target.end(), target.begin(), ::tolower);
+
+    if (target == "openssl" || target == "software") {
+        preferredSourceType = "openssl";
+        if (!openSSLSource) {
+            initializeOpenSSL();
+        }
+        if (openSSLSource) {
+            entropySource = openSSLSource;
+            activeSourceType = "openssl";
+            activeSourceName = openSSLSource->getSourceName();
+            if (entropyPool) {
+                entropyPool->resetSpeed();
+                entropyPool->setSource(openSSLSource);
+            }
+            { std::stringstream ss; ss << "[EntropyCollector] User switched source to OpenSSL software mode"; LOG_INFO(ss.str()); }
+            return true;
+        }
+        return false;
+    } else if (target == "hardware" || target == "esp32") {
+        preferredSourceType = "hardware";
+        bool hwReady = false;
+        if (hardwareSource && hardwareSource->isPortOpen() && hardwareSource->isAvailable()) {
+            hwReady = true;
+        } else if (hardwareSource && hardwareSource->isPortOpen()) {
+            hwReady = hardwareSource->resumeFromPause();
+        } else {
+            hwReady = initializeHardware(port, baudRate);
+        }
+
+        if (hwReady && hardwareSource) {
+            if (configuredWhitening == "sha256") {
+                hardwareSource->setWhiteningAlgorithm(SerialEntropySource::WhiteningAlgorithm::SHA256);
+            } else {
+                hardwareSource->setWhiteningAlgorithm(SerialEntropySource::WhiteningAlgorithm::LFSR);
+            }
+            entropySource = hardwareSource;
+            activeSourceType = "hardware";
+            activeSourceName = hardwareSource->getSourceName();
+            hardwareAvailable = true;
+            if (entropyPool) {
+                entropyPool->resetSpeed();
+                entropyPool->setSource(hardwareSource);
+            }
+            { std::stringstream ss; ss << "[EntropyCollector] User switched source to ESP32 hardware mode"; LOG_INFO(ss.str()); }
+            return true;
+        } else {
+            { std::stringstream ss; ss << "[EntropyCollector] Hardware mode requested, but ESP32 device is not currently responsive"; LOG_WARN(ss.str()); }
+            return false;
+        }
+    } else if (target == "auto") {
+        preferredSourceType = "auto";
+        { std::stringstream ss; ss << "[EntropyCollector] Source selection restored to auto"; LOG_INFO(ss.str()); }
+        return true;
+    }
+
+    return false;
+}
+
+std::string EntropyCollector::getPreferredSourceType() const {
+    return preferredSourceType;
+}
+
+void EntropyCollector::setWhiteningAlgorithm(const std::string& algo) {
+    std::string lower = algo;
+    std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
+    if (lower.find("sha") != std::string::npos) {
+        configuredWhitening = "sha256";
+        if (hardwareSource) {
+            hardwareSource->setWhiteningAlgorithm(SerialEntropySource::WhiteningAlgorithm::SHA256);
+        }
+    } else {
+        configuredWhitening = "lfsr";
+        if (hardwareSource) {
+            hardwareSource->setWhiteningAlgorithm(SerialEntropySource::WhiteningAlgorithm::LFSR);
+        }
+    }
+    { std::stringstream ss; ss << "[EntropyCollector] Whitening algorithm configured: " << configuredWhitening; LOG_INFO(ss.str()); }
+}
+
+std::string EntropyCollector::getWhiteningAlgorithm() const {
+    if (hardwareSource) {
+        auto algo = hardwareSource->getWhiteningAlgorithm();
+        return algo == SerialEntropySource::WhiteningAlgorithm::SHA256 ? "sha256" : "lfsr";
+    }
+    return configuredWhitening;
 }

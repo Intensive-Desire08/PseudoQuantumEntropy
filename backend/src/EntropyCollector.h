@@ -213,6 +213,28 @@ public:
      */
     unsigned int getBaudRate() const;
 
+    /**
+     * @brief Switch active entropy source manually ("hardware", "openssl", or "auto")
+     * @param sourceType Target source type
+     * @return true if switched successfully
+     */
+    bool switchSourceType(const std::string& sourceType);
+
+    /**
+     * @brief Get preferred source type ("hardware", "openssl", or "auto")
+     */
+    std::string getPreferredSourceType() const;
+
+    /**
+     * @brief Set whitening algorithm on the hardware entropy source ("lfsr" or "sha256")
+     */
+    void setWhiteningAlgorithm(const std::string& algo);
+
+    /**
+     * @brief Get current whitening algorithm name ("lfsr" or "sha256")
+     */
+    std::string getWhiteningAlgorithm() const;
+
 private:
     /**
      * @brief Initialize the hardware entropy source
@@ -260,6 +282,8 @@ private:
     std::atomic<bool> initialized;
     std::string activeSourceType;
     std::string activeSourceName;
+    std::string preferredSourceType = "auto";
+    std::string configuredWhitening = "lfsr";
 
     // Hardware detection status
     std::atomic<bool> hardwareAvailable;

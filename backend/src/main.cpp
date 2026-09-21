@@ -216,6 +216,8 @@ int main(int argc, char* argv[]) {
     const std::string serialPort = config.getSerialPort();
     const unsigned int baudRate = config.getSerialBaudRate();
     const size_t bufferSize = config.getPoolBufferSize();
+    const std::string whiteningAlgo = config.get<std::string>("entropy.whitening", "lfsr");
+    entropyCollector.setWhiteningAlgorithm(whiteningAlgo);
 
     bool entropyInitialized = false;
     std::string sourceType = "auto";

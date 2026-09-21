@@ -1,5 +1,6 @@
 #include "WebServer.h"
 #include "EntropyCollector.h"
+#include "Config.h"
 #include "crypto/KeyGenerator.h"
 #include "crypto/Encryptor.h"
 #include "crypto/Hasher.h"
@@ -308,6 +309,8 @@ void WebServer::handleStatus(const httplib::Request& req, httplib::Response& res
     entropyStatus["speed"] = entropyCollector.getSpeed();
     entropyStatus["hardware_available"] = entropyCollector.isHardwareAvailable();
     entropyStatus["openssl_available"] = entropyCollector.isOpenSSLAvailable();
+    entropyStatus["whitening"] = entropyCollector.getWhiteningAlgorithm();
+    entropyStatus["preferred_source"] = entropyCollector.getPreferredSourceType();
     response["entropy"] = entropyStatus;
     
     // Server status
@@ -727,7 +730,9 @@ void WebServer::handleGetSettings(const httplib::Request& req, httplib::Response
     settings["pool_size"] = entropyCollector.getPoolSize();
     settings["available_bytes"] = entropyCollector.getAvailableBytes();
     settings["source_type"] = entropyCollector.getSourceType();
+    settings["preferred_source"] = entropyCollector.getPreferredSourceType();
     settings["source_name"] = entropyCollector.getSourceName();
+    settings["whitening"] = entropyCollector.getWhiteningAlgorithm();
     settings["initialized"] = entropyCollector.isInitialized();
     settings["total_generated"] = entropyCollector.getTotalBytesGenerated();
     
@@ -752,30 +757,52 @@ void WebServer::handleSettings(const httplib::Request& req, httplib::Response& r
         // Update settings
         if (request.contains("port")) {
             std::string newPort = request["port"].get<std::string>();
-            if (!newPort.empty()) {
+            if (!newPort.empty() && newPort != entropyCollector.getPort()) {
                 entropyCollector.setPort(newPort);
-                responseMsg += "Port updated. Restart required. ";
+                Config::instance().set("serial.port", newPort);
+                responseMsg += "Port updated. ";
             }
         }
         
         if (request.contains("baud_rate")) {
             unsigned int baud = request["baud_rate"].get<unsigned int>();
-            if (baud > 0) {
+            if (baud > 0 && baud != entropyCollector.getBaudRate()) {
                 entropyCollector.setBaudRate(baud);
-                responseMsg += "Baud rate updated. Restart required. ";
+                Config::instance().set("serial.baud_rate", baud);
+                responseMsg += "Baud rate updated. ";
             }
         }
         
         if (request.contains("source_type")) {
             std::string source = request["source_type"].get<std::string>();
-            // This would require reinitialization
-            responseMsg += "Source type change requires service restart. ";
+            if (!source.empty()) {
+                if (entropyCollector.switchSourceType(source)) {
+                    Config::instance().set("entropy.source", source);
+                    responseMsg += "Source switched to " + source + ". ";
+                } else {
+                    Config::instance().set("entropy.source", source);
+                    responseMsg += "Hardware source set as preferred (awaiting device response). ";
+                }
+            }
+        }
+
+        if (request.contains("whitening")) {
+            std::string whitening = request["whitening"].get<std::string>();
+            if (!whitening.empty()) {
+                entropyCollector.setWhiteningAlgorithm(whitening);
+                Config::instance().set("entropy.whitening", whitening);
+                responseMsg += "Whitening algorithm switched to " + whitening + ". ";
+            }
         }
         
         if (request.contains("reseed") && request["reseed"].get<bool>()) {
             entropyCollector.refillPool();
             responseMsg += "Pool refilled. ";
         }
+
+        try {
+            Config::instance().save("config/backend_config.json");
+        } catch (...) {}
         
         nlohmann::json response;
         response["status"] = "ok";

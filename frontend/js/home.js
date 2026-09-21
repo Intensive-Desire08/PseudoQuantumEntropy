@@ -19,6 +19,7 @@ window.PQEPollController = window.PQEPollController || {
   let lastBytes = null;
   let lastTime = null;
   let lastSourceType = null;
+  let lastWhitening = 'lfsr';
   let currentEntropyHex = '';
   let activeFormat = 'hex';
 
@@ -168,11 +169,13 @@ window.PQEPollController = window.PQEPollController || {
         }
 
         const currentSourceType = entropy.source_type || 'unknown';
+        const currentTime = Date.now();
         if (lastSourceType !== null && lastSourceType !== currentSourceType) {
-          lastBytes = null;
-          lastTime = null;
+          lastBytes = currentBytes;
+          lastTime = currentTime;
         }
         lastSourceType = currentSourceType;
+        lastWhitening = (entropy.whitening || 'lfsr').toLowerCase();
 
         const currentBytes = entropy.total_generated || 0;
         let speedStr = 'Calculating...';
@@ -331,12 +334,19 @@ window.PQEPollController = window.PQEPollController || {
 
           // Animate Stage 04
           setPipelineStep('lsb', 'complete', 'LSBs isolated');
-          setPipelineStep('whitening', 'active', 'Backend LFSR polynomial XOR whitening...');
-          if (telemetry) telemetry.textContent = `[LFSR Whitening] C++ backend whitened raw ADC stream (Galois polynomial 0x80000057).`;
-          await new Promise((r) => setTimeout(r, 60));
+          if (lastWhitening === 'sha256') {
+            setPipelineStep('whitening', 'active', 'Backend SHA-256 cryptographic conditioning...');
+            if (telemetry) telemetry.textContent = `[SHA-256 Whitening] C++ backend conditioned raw ADC stream (NIST SP 800-90B 2:1 extraction).`;
+            await new Promise((r) => setTimeout(r, 60));
+            setPipelineStep('whitening', 'complete', 'SHA-256 conditioned');
+          } else {
+            setPipelineStep('whitening', 'active', 'Backend LFSR polynomial XOR whitening...');
+            if (telemetry) telemetry.textContent = `[LFSR Whitening] C++ backend whitened raw ADC stream (Galois polynomial 0x80000057).`;
+            await new Promise((r) => setTimeout(r, 60));
+            setPipelineStep('whitening', 'complete', 'LFSR whitened');
+          }
 
           // Animate Stage 05 & Call API
-          setPipelineStep('whitening', 'complete', 'LFSR whitened');
           setPipelineStep('pool', 'active', 'Querying thread-safe entropy buffer...');
 
           const entropyResponse = await window.PQEApi.getEntropy(count);

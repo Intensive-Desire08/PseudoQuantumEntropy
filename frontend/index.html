@@ -692,18 +692,30 @@
                   type="number"
                   min="9600"
                   step="9600"
-                  placeholder="115200"
+                  placeholder="921600"
                 />
               </div>
 
               <div class="form-group">
-                <label for="settings-source" class="form-label">Entropy Source</label>
-                <input
-                  id="settings-source"
-                  class="form-input"
-                  type="text"
-                  placeholder="e.g. hardware or openssl"
-                />
+                <label for="settings-source" class="form-label">Entropy Source Provider</label>
+                <select id="settings-source" class="form-select">
+                  <option value="hardware">ESP32 Hardware TRNG (Dual Photodiode)</option>
+                  <option value="openssl">OpenSSL Software Fallback</option>
+                </select>
+                <small style="color: var(--muted); font-size: 0.75rem; display: block; margin-top: 0.35rem;">
+                  Toggle active entropy source between physical ESP32 TRNG and OpenSSL fallback.
+                </small>
+              </div>
+
+              <div class="form-group">
+                <label for="settings-whitening" class="form-label">Whitening Algorithm</label>
+                <select id="settings-whitening" class="form-select">
+                  <option value="lfsr">32-bit Galois LFSR (~14.7 KB/s - Gateway)</option>
+                  <option value="sha256">SHA-256 Hash Extraction (~7.3 KB/s - NIST SP 800-90B)</option>
+                </select>
+                <small style="color: var(--muted); font-size: 0.75rem; display: block; margin-top: 0.35rem;">
+                  Select LFSR for full throughput or SHA-256 for 2:1 cryptographic extraction.
+                </small>
               </div>
             </div>
 
