@@ -1,123 +1,196 @@
 /*
-  Dual Photodiode True Random Number Generator (TRNG)
-
-  - Uses two independent analog entropy sources (photodiodes)
-  - Amplified using LM358 op-amp
-  - Extracts least significant bit (LSB) from ADC readings
-  - Applies Von Neumann whitening to remove bias
-  - Converts the bits into bytes
-  - Outputs unbiased random bytes over Serial
+  Dual Photodiode True Random Number Generator (TRNG) - Option B (DMA Continuous Mode)
+  
+  - Target Board: ESP32 Dev Module (Espressif Arduino Core 3.x / ESP-IDF v5)
+  - Uses ESP32 Hardware SAR ADC1 in Continuous DMA Mode
+  - Channels: GPIO 34 (ADC1_CHANNEL_6) & GPIO 35 (ADC1_CHANNEL_7)
+  - Hardware DMA samples automatically in background at 60 kHz into DMA memory
+  - Zero CPU analogRead() polling: CPU reads completed DMA frames from RAM
+  - Streams 64-byte payload frames: [0xAA][0x55][64 raw bytes] over Serial at 921,600 baud
+  - Whitening and debiasing performed on C++ backend via 32-bit Galois LFSR
 */
 
-int greenLED = 4;
-int redLED = 5;
-const int PIN1 = 34;
-const int PIN2 = 35;
-unsigned long lastLEDTime = 0;
-const int ledDelay = 100; // 0.1 sec
+#include <Arduino.h>
+#include "esp_adc/adc_continuous.h"
 
-// Pause/Resume button settings
+// Configuration constants
+#define DMA_FRAME_SIZE 256
+#define ADC_SAMPLE_FREQ_HZ 60000 // 60 kHz continuous hardware sampling
+
+const int greenLED = 4;
+const int redLED = 5;
 const int BUTTON_PIN = 25;
+
 bool running = true;
 int buttonState;
 int lastButtonState;
 unsigned long lastDebounceTime = 0;
+unsigned long lastLEDTime = 0;
+const int ledDelay = 100;
+uint8_t lastEntropyByte = 0;
 
-// Set to true to print readable output to Arduino Serial Monitor
-// Set to false to output binary data for the Python Analyzer / Backend
-bool debugMode = false;
+adc_continuous_handle_t adcHandle = NULL;
+uint8_t dmaBuffer[DMA_FRAME_SIZE];
 
-int getBit() {
-  return (analogRead(PIN1) ^ analogRead(PIN2)) & 1;
-}
+// Attenuation and bit-width compatibility macros
+#ifdef ADC_ATTEN_DB_12
+  #define TRNG_ADC_ATTEN ADC_ATTEN_DB_12
+#else
+  #define TRNG_ADC_ATTEN ADC_ATTEN_DB_11
+#endif
 
-int getByte() {
-  int value = 0;
-  for(int i = 0; i < 4; i++){
-    value = (value << 2) | ((analogRead(PIN1) ^ analogRead(PIN2)) & 0x03);
-  }
-  return value;
+#ifdef SOC_ADC_DIGI_MAX_BITWIDTH
+  #define TRNG_BIT_WIDTH SOC_ADC_DIGI_MAX_BITWIDTH
+#else
+  #define TRNG_BIT_WIDTH 12
+#endif
+
+// Output format macros for ESP32 (Type 1 format on ESP32)
+#if CONFIG_IDF_TARGET_ESP32 || CONFIG_IDF_TARGET_ESP32S2
+  #define ADC_OUTPUT_TYPE ADC_DIGI_OUTPUT_FORMAT_TYPE1
+  #define ADC_GET_CHANNEL(p) ((p)->type1.channel)
+  #define ADC_GET_DATA(p) ((p)->type1.data)
+#else
+  #define ADC_OUTPUT_TYPE ADC_DIGI_OUTPUT_FORMAT_TYPE2
+  #define ADC_GET_CHANNEL(p) ((p)->type2.channel)
+  #define ADC_GET_DATA(p) ((p)->type2.data)
+#endif
+
+// 64-byte payload transmission packet
+uint8_t packet[66];
+int packetIndex = 0;
+
+void initADCContinuous() {
+  adc_continuous_handle_cfg_t adcConfig;
+  memset(&adcConfig, 0, sizeof(adcConfig));
+  adcConfig.max_store_buf_size = 2048;
+  adcConfig.conv_frame_size = DMA_FRAME_SIZE;
+  ESP_ERROR_CHECK(adc_continuous_new_handle(&adcConfig, &adcHandle));
+
+  adc_digi_pattern_config_t adcPattern[2];
+  memset(adcPattern, 0, sizeof(adcPattern));
+
+  adcPattern[0].atten = TRNG_ADC_ATTEN;
+  adcPattern[0].channel = ADC_CHANNEL_6; // GPIO 34
+  adcPattern[0].unit = ADC_UNIT_1;
+  adcPattern[0].bit_width = TRNG_BIT_WIDTH;
+
+  adcPattern[1].atten = TRNG_ADC_ATTEN;
+  adcPattern[1].channel = ADC_CHANNEL_7; // GPIO 35
+  adcPattern[1].unit = ADC_UNIT_1;
+  adcPattern[1].bit_width = TRNG_BIT_WIDTH;
+
+  adc_continuous_config_t digConfig;
+  memset(&digConfig, 0, sizeof(digConfig));
+  digConfig.pattern_num = 2;
+  digConfig.adc_pattern = adcPattern;
+  digConfig.sample_freq_hz = ADC_SAMPLE_FREQ_HZ;
+  digConfig.conv_mode = ADC_CONV_SINGLE_UNIT_1;
+  digConfig.format = ADC_OUTPUT_TYPE;
+
+  ESP_ERROR_CHECK(adc_continuous_config(adcHandle, &digConfig));
+  ESP_ERROR_CHECK(adc_continuous_start(adcHandle));
 }
 
 void setup() {
-  Serial.setTxBufferSize(512);
+  Serial.setTxBufferSize(2048);
   Serial.begin(921600);
 
   pinMode(greenLED, OUTPUT);
   pinMode(redLED, OUTPUT);
-  
-  // Initialize push button with internal pull-up
   pinMode(BUTTON_PIN, INPUT_PULLUP);
-  
-  // Wait for the internal pull-up to charge the pin's capacitance
+
   delay(10);
   buttonState = digitalRead(BUTTON_PIN);
   lastButtonState = buttonState;
+
+  // Initialize packet framing header [0xAA][0x55]
+  packet[0] = 0xAA;
+  packet[1] = 0x55;
+  packetIndex = 0;
+
+  // Initialize and start Hardware ADC Continuous DMA Mode
+  initADCContinuous();
 }
 
-void loop(){
-
+void loop() {
   // --- Button Edge Detection with 200ms Lockout ---
   int reading = digitalRead(BUTTON_PIN);
-  
-  if (debugMode) {
-    static unsigned long lastDebugPrint = 0;
-    if (millis() - lastDebugPrint > 500) {
-      Serial.print("Raw Button Pin (GPIO 25): ");
-      Serial.print(reading);
-      Serial.print(" | State: ");
-      Serial.println(running ? "RUNNING" : "PAUSED");
-      lastDebugPrint = millis();
-    }
-  }
 
   if (reading == LOW && buttonState == HIGH && (millis() - lastDebounceTime > 200)) {
     running = !running;
     buttonState = LOW;
     lastDebounceTime = millis();
-    if (debugMode) {
-      Serial.println(">>> CLICK DETECTED! (Toggled state) <<<");
-    }
-  } 
-  else if (reading == HIGH && buttonState == LOW && (millis() - lastDebounceTime > 200)) {
+  } else if (reading == HIGH && buttonState == LOW && (millis() - lastDebounceTime > 200)) {
     buttonState = HIGH;
     lastDebounceTime = millis();
-    if (debugMode) {
-      Serial.println(">>> BUTTON RELEASED <<<");
-    }
   }
+
   // Paused state behavior
   if (!running) {
     digitalWrite(greenLED, LOW);
     digitalWrite(redLED, LOW);
-    return; // Exit early; loop() will immediately re-run to poll button
+    // Drain DMA buffer during pause so it doesn't accumulate stale readings
+    uint32_t discardBytes = 0;
+    adc_continuous_read(adcHandle, dmaBuffer, sizeof(dmaBuffer), &discardBytes, 10);
+    return;
   }
-  // --- End Button Logic ---
 
-  // Output random bytes stream without blocking
-  if (!debugMode) {
-    // Binary output for analyzer/backend:
-    // Transmits 64-byte payload with 2-byte sync header [0xAA][0x55][64 raw bytes]
-    // Only write if there is space in the buffer to prevent the ESP32 from
-    // freezing when the backend isn't actively reading the COM port!
-    if (Serial.availableForWrite() >= 66) {
-      uint8_t packet[66];
-      packet[0] = 0xAA;
-      packet[1] = 0x55;
-      for (int i = 0; i < 64; i++) {
-        packet[2 + i] = (uint8_t)getByte();
+  // --- Read Continuous ADC Samples directly from DMA RAM ---
+  uint32_t bytesRead = 0;
+  esp_err_t ret = adc_continuous_read(adcHandle, dmaBuffer, sizeof(dmaBuffer), &bytesRead, 20);
+
+  if (ret == ESP_OK && bytesRead > 0) {
+    static int val1 = -1;
+    static int val2 = -1;
+    static int nibbleCount = 0;
+    static uint8_t currentByte = 0;
+
+    for (int i = 0; i < bytesRead; i += sizeof(adc_digi_output_data_t)) {
+      adc_digi_output_data_t *p = (adc_digi_output_data_t *)&dmaBuffer[i];
+      uint32_t channel = ADC_GET_CHANNEL(p);
+      uint32_t data = ADC_GET_DATA(p);
+
+      if (channel == ADC_CHANNEL_6) {
+        val1 = data;
+      } else if (channel == ADC_CHANNEL_7) {
+        val2 = data;
       }
-      Serial.write(packet, 66);
+
+      // When we have a matched pair of readings from both photodiodes:
+      if (val1 >= 0 && val2 >= 0) {
+        // Extract 4-bit noise nibble from differential shot noise
+        uint8_t noiseNibble = (uint8_t)((val1 ^ val2) & 0x0F);
+        val1 = -1;
+        val2 = -1;
+
+        if (nibbleCount == 0) {
+          currentByte = noiseNibble;
+          nibbleCount = 1;
+        } else {
+          currentByte = (noiseNibble << 4) | currentByte;
+          nibbleCount = 0;
+
+          // Place byte in transmission packet
+          packet[2 + packetIndex] = currentByte;
+          lastEntropyByte = currentByte;
+          packetIndex++;
+
+          // When full 64-byte payload is ready, transmit frame
+          if (packetIndex >= 64) {
+            Serial.write(packet, 66);
+            packetIndex = 0;
+          }
+        }
+      }
     }
   }
 
-  // LED visualization
-  if(millis() - lastLEDTime >= ledDelay){ // Time for updation
+  // LED visualization (taps stream with zero extra ADC reads)
+  if (millis() - lastLEDTime >= ledDelay) {
     lastLEDTime = millis();
-
-    int bit = (analogRead(PIN1) ^ analogRead(PIN2)) & 1;
-
-    if(bit == 1){
+    int bit = lastEntropyByte & 1;
+    if (bit == 1) {
       digitalWrite(greenLED, HIGH);
       digitalWrite(redLED, LOW);
     } else {
@@ -125,8 +198,4 @@ void loop(){
       digitalWrite(redLED, HIGH);
     }
   }
-
-  //Serial.println(b1);
-  //Serial.println(val1);
-  //Serial.println(finalByte);
 }

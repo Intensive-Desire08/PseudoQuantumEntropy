@@ -258,8 +258,8 @@ void EntropyPool::collectionThread() {
                 windowStartTime = std::chrono::steady_clock::now();
                 std::this_thread::sleep_for(std::chrono::milliseconds(100));
             } else if (!needRefill && isHardware) {
-                // Buffer is full; yield briefly between reads so hardware streaming paces naturally
-                std::this_thread::sleep_for(std::chrono::milliseconds(5));
+                // Buffer is full; yield CPU slice so other threads can run without artificially throttling serial stream
+                std::this_thread::yield();
             }
         } else {
             // Buffer is full and source is software (OpenSSL).

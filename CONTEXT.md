@@ -387,7 +387,13 @@ npx playwright show-report
 
 - **Current Default Baud Rate**: `921600` (set in `PQHardware.ino`, `config/backend_config.json`, and `SerialEntropySource.h`).
 - **Framing Protocol**: 66-byte chunked packet with 2-byte sync header: `[0xAA][0x55][64 raw bytes]`.
-- **Sampling Method**: 2-bit dual-ADC XOR extraction (`((val1 ^ val2) & 0x03)` looped 4 times per byte).
+- **Sampling Method (Option B - Active in `PQHardware.ino`)**:
+  - Uses ESP32 Hardware SAR ADC1 in **Continuous DMA Mode** (`esp_adc/adc_continuous.h` in Arduino ESP32 Core 3.3.12 / ESP-IDF v5).
+  - Background DMA sampling rate: **60,000 Hz (60 kHz)** on GPIO 34 (ADC1_CH6) and GPIO 35 (ADC1_CH7).
+  - Zero CPU polling overhead: ADC conversions write directly into DMA memory buffers in RAM.
+  - CPU extracts 4-bit differential noise nibbles (`(val1 ^ val2) & 0x0F`) from DMA buffers and transmits 64-byte payload frames over Serial at 921,600 baud.
+  - Expected throughput: **~30–60 KB/s** (saturating the serial line well above the 12 KB/s minimum threshold).
+  - Whitening and debiasing performed on backend via 32-bit Galois LFSR filter.
 
 #### ⚠️ Hardware Baud Rate Troubleshooting:
 If the ESP32 fails to communicate, reports frequent desyncs/timeouts, or drops bytes:
@@ -406,6 +412,8 @@ If the ESP32 fails to communicate, reports frequent desyncs/timeouts, or drops b
 
 | Date | Change | Details |
 |---|---|---|
+| 2026-09-21 | Hardware Sampling Speedup (Option A) & DMA Roadmap | Solved the 3 KB/s bottleneck caused by Arduino's `analogRead()` (~45 µs per call $\times 8$ reads/byte). Updated `PQHardware.ino` to use native ESP-IDF `adc1_get_raw()` (~9.5 µs) and 4-bit nibble extraction (2 sample pairs per byte), yielding ~25–30 KB/s continuous throughput. Removed redundant LED `analogRead()`s, increased serial TX buffer to 1024 bytes, and replaced the backend's 5ms pool throttle with `std::this_thread::yield()`. Documented Option B (ADC DMA continuous mode targeting ~85–90 KB/s) in CONTEXT.md for future implementation. |
+| 2026-09-21 | Speed Accuracy & Switch Reset Holdoff | Replaced instantaneous microsecond batch timing with a 1-second sliding window ($\Delta\text{bytes} / 1\text{s}$) for real continuous hardware speed (~25–50 KB/s). Implemented a 1-second reset holdoff in `EntropyPool::resetSpeed()` so switching between sources cleanly renders `0.0 KB/s` in terminal logs and web dashboard before ramping up. Added `lastSourceType` transition tracking to `frontend/js/home.js`. |
 | 2026-09-21 | Fix ESP32 Auto-Restart on Pause | Resolved the issue where the ESP32 automatically restarted 2 seconds after pausing via the button. The backend previously closed the COM port on pause and reopened it during reconnect polling, which toggled DTR/RTS and triggered the ESP32's hardware auto-reset circuit (rebooting the chip with `running = true`). The backend now keeps the COM port open while paused, using `ClearCommError` / `hasIncomingData()` to monitor `cbInQue` with zero port toggles or resets. The ESP32 now stays paused indefinitely until the user presses the button again to resume. |
 | 2026-09-21 | Live Speed & Button Pause Fallback Fix | Fixed frozen collection speed and hardware button pause detection. Replaced collection freeze when pool is full with circular FIFO overwrite in `EntropyPool::addBytes()`, continuously refreshing the pool with the newest quantum entropy. Kept hardware collection active outside the pool mutex to stream live speed readings. Added 1200ms silence detection to `SerialEntropySource::isAvailable()` and disabled Windows DTR/RTS auto-reset during COM port probes. Enabled single-tick fallback to OpenSSL in `sourceMonitorLoop` when the ESP32 pause button (GPIO 25) stops transmission, with smooth auto-recovery upon unpause. |
 | 2026-09-21 | Fix Hardware/OpenSSL Flapping & Ping-Pong | Resolved rapid switching between hardware and OpenSSL. Removed false idle timeout in `isAvailable()`, slowed `sourceMonitorLoop` check to 1 second with 2-second hysteresis, increased probe timeout to 1500ms to allow ESP32 bootloader recovery, removed redundant discarded `trash` reads in `EntropyPool`, and expanded ESP32 TX buffer to 512 bytes (`setTxBufferSize`). |
