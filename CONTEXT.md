@@ -11,12 +11,12 @@
 | Field | Value |
 |---|---|
 | **Project** | PseudoQuantum Entropy Service |
-| **Version** | v0.2.alpha.build.01  |
+| **Version** | v0.2.alpha.build.02  |
 | **Type** | Hybrid hardware-software entropy system with cryptographic applications |
 | **Repository** | `Intensive-Desire08/PseudoQuantumEntropy` |
 | **Languages** | C++17 (backend), C++/Arduino (firmware), Python 3.11+ (analyzer), HTML/CSS/JS (frontend) |
 | **Primary Goal** | Modular hardware-backed entropy service for cryptographic key generation and AES-GCM image encryption/decryption |
-| **Entropy Source** | Dual-photodiode shot noise (ESP32 ADC → LSB extraction → Von Neumann whitening) |
+| **Entropy Source** | Dual-photodiode quantum shot noise (ESP32 Continuous DMA ADC → 4-bit nibble differential extraction → Host C++ Galois LFSR whitening [~14.7 KB/s] or NIST SP 800-90B SHA-256 conditioning [~7.3 KB/s]) |
 | **Why "PseudoQuantum"** | Generated entropy contains both quantum-origin shot noise and unavoidable classical noise — not a pure QRNG |
 
 ---
@@ -27,24 +27,27 @@
 |---|---|
 | **Current Stage** | **Integration & Polish** — All core modules implemented |
 | **Backend** | ✅ Fully implemented — builds and runs (confirmed via logs) |
-| **Hardware Firmware** | ✅ Complete (`PQTHardware.ino`) |
+| **Hardware Firmware** | ✅ Complete (`PQHardware/PQHardware.ino`) — continuous DMA sampling @ 921,600 baud |
 | **Python Analyzer** | ✅ Complete (quick + full NIST STS modes) |
-| **Frontend** | ✅ Functional SPA — all pages present |
-| **Build System** | ✅ CMake + vcpkg configured and working |
+| **Frontend** | ✅ Functional SPA — all pages present with dynamic whitening & source switching |
+| **Build System** | ✅ CMake + vcpkg configured and working (`cmake --build --preset default`) |
 | **Tests** | ⚠️ Skeleton only (`test_1.cpp` is empty) |
 | **Documentation** | ⚠️ Minimal — `README.md` is placeholder, no `docs/` directory |
-| **Last Successful Run** | 2026-08-22 (OpenSSL fallback mode on port 8080) |
+| **Last Successful Run** | 2026-09-21 (Hardware TRNG & OpenSSL fallback mode on port 8080) |
 
 ---
 
 ## ✅ Completed Features (v1.0)
 
-- [x] Dual-photodiode entropy sampling with Von Neumann whitening (ESP32 firmware)
-- [x] Serial entropy source with sync marker `0xAA` protocol
-- [x] OpenSSL software fallback entropy source (`RAND_bytes()`)
+- [x] Dual-photodiode entropy sampling via continuous DMA ADC & differential noise extraction (ESP32 firmware)
+- [x] High-throughput serial protocol at 921,600 baud with `[0xAA][0x55][64B]` framing
+- [x] Dual host-side whitening algorithms: 32-bit Galois LFSR (~14.7 KB/s) & NIST SP 800-90B SHA-256 (~7.3 KB/s)
+- [x] Runtime source & whitening toggle in Settings UI with live config persistence
+- [x] Non-invasive COM queue monitoring (`ClearCommError`) preventing ESP32 auto-reset on button pause
+- [x] OpenSSL software fallback entropy source (`RAND_bytes()`) with smooth auto-reconnect
 - [x] Abstract entropy interface (`IEntropySource`) with pluggable sources
 - [x] Entropy collector with auto-detection (hardware-first, OpenSSL fallback)
-- [x] Thread-safe entropy pool with background collection and periodic refill
+- [x] Thread-safe entropy pool with background collection, circular overwrite, and periodic refill
 - [x] AES-256-GCM encryption / decryption module
 - [x] Cryptographic key generation (256-bit, PBKDF2-SHA256 derivation)
 - [x] SHA-256 hashing and integrity verification module
@@ -84,16 +87,16 @@
 ### Hardware Layer
 | Module | File | Status | Description |
 |---|---|---|---|
-| ESP32 Firmware | `hardware/PQHardware.ino` | ✅ | Dual photodiode, LSB extraction, Von Neumann whitening, serial output |
+| ESP32 Firmware | `PQHardware/PQHardware.ino` | ✅ | Continuous DMA ADC sampling, differential noise extraction, binary packet streaming at 921,600 baud |
 
 ### Backend — Entropy Layer
 | Module | Files | Status | Description |
 |---|---|---|---|
 | IEntropySource | `backend/src/entropy/IEntropySource.h` | ✅ | Abstract interface for all entropy providers |
-| SerialEntropySource | `backend/src/entropy/SerialEntropySource.cpp/h` | ✅ | ESP32 serial comm via Boost.Asio, sync marker parsing |
+| SerialEntropySource | `backend/src/entropy/SerialEntropySource.cpp/h` | ✅ | ESP32 serial comm via Boost.Asio & Win32 API, `[0xAA][0x55]` framing, Galois LFSR / SHA-256 whitening |
 | OpenSSLEntropySource | `backend/src/entropy/OpenSSLEntropySource.cpp/h` | ✅ | Software fallback using `RAND_bytes()` |
-| EntropyCollector | `backend/src/EntropyCollector.cpp/h` | ✅ | Source selection, hardware detection, validation |
-| EntropyPool | `backend/src/EntropyPool.cpp/h` | ✅ | Thread-safe buffer, background collection, periodic refill |
+| EntropyCollector | `backend/src/EntropyCollector.cpp/h` | ✅ | Source selection, hardware detection, runtime switching, non-resetting pause monitor |
+| EntropyPool | `backend/src/EntropyPool.cpp/h` | ✅ | Thread-safe buffer, background collection, sliding-window speed calculation, holdoff reset |
 
 ### Backend — Cryptographic Layer
 | Module | Files | Status | Description |
@@ -179,12 +182,13 @@
 | Parameter | Value |
 |---|---|
 | Medium | Serial (USB) |
-| Baud Rate | **115200** |
+| Baud Rate | **921600** (default; step-down fallbacks: 460800, 115200) |
 | Protocol | Binary |
-| Frame Format | `[0xAA][Random Byte]` (2 bytes per frame) |
-| Validation | Sync marker `0xAA` verification before accepting data byte |
-| Fallback | Automatic switch to OpenSSL if hardware not detected |
-| ESP32 ADC Pins | GPIO 34 (Channel 1), GPIO 35 (Channel 2) |
+| Frame Format | `[0xAA][0x55][64 raw bytes]` (66 bytes per frame) |
+| Validation | 2-byte sync marker `[0xAA][0x55]` verification with sliding resync |
+| Whitening | Backend 32-bit Galois LFSR (`0x80000057`, ~14.7 KB/s) or SHA-256 (NIST SP 800-90B, ~7.3 KB/s) |
+| Fallback | Automatic non-invasive switch to OpenSSL if paused or disconnected |
+| ESP32 ADC Pins | GPIO 34 (Channel 1, ADC1_CH6), GPIO 35 (Channel 2, ADC1_CH7) in Continuous DMA mode |
 | LED Pins | GPIO 4 (Green), GPIO 5 (Red) |
 
 ### C++ Backend ↔ Python Analyzer
@@ -326,20 +330,33 @@ PseudoQuantumEntropy/
 ```jsonc
 // config/backend_config.json
 {
-  "serial.port": "COM3",
-  "serial.baud_rate": 115200,
-  "serial.timeout_ms": 5000,
-  "entropy.source": "auto",           // "auto" | "hardware" | "openssl"
-  "entropy.pool_buffer_size": 4096,
-  "entropy.pool_refill_threshold": 2048,
-  "http.port": 8080,
-  "analysis.test_mode": "quick",      // "quick" | "full"
-  "analysis.test_size": 1024,
-  "server.frontend_path": "./frontend",
-  "server.max_upload_size": 10485760, // 10 MB
-  "crypto.key_size": 256,
-  "crypto.salt_size": 32,
-  "crypto.iterations": 100000         // PBKDF2 iterations
+  "serial": {
+    "port": "COM3",
+    "baud_rate": 921600,
+    "timeout_ms": 5000
+  },
+  "entropy": {
+    "source": "hardware",             // "hardware" | "openssl" | "auto"
+    "whitening": "lfsr",              // "lfsr" (~14.7 KB/s) | "sha256" (~7.3 KB/s)
+    "pool_buffer_size": 8192,
+    "pool_refill_threshold": 4096
+  },
+  "http": {
+    "port": 8080
+  },
+  "crypto": {
+    "key_size": 256,
+    "salt_size": 32,
+    "iterations": 100000              // PBKDF2 iterations
+  },
+  "analysis": {
+    "test_mode": "quick",             // "quick" | "full"
+    "test_size": 1024
+  },
+  "server": {
+    "frontend_path": "./frontend",
+    "max_upload_size": 10485760       // 10 MB
+  }
 }
 ```
 
@@ -412,6 +429,8 @@ If the ESP32 fails to communicate, reports frequent desyncs/timeouts, or drops b
 
 | Date | Change | Details |
 |---|---|---|
+| 2026-09-21 | Dynamic UI Text (LFSR vs SHA-256) & How It Works Docs | Updated frontend (`index.html` & `home.js`) to dynamically update the Home page subtitle and Stage 04 pipeline card (`Backend LFSR Whitening` vs. `Backend SHA-256 Whitening`, with algorithm-specific descriptions and standby detail tags) based on active `/status` telemetry. Expanded the "How It Works" (`#about`) Algorithmic Layer documentation to describe both 32-bit Galois LFSR (~14.7 KB/s) and SHA-256 (NIST SP 800-90B, ~7.3 KB/s) side by side. Verified `config/backend_config.json` defaults to `"source": "hardware"` and `"whitening": "lfsr"`. |
+| 2026-09-21 | Bugfix: Fallback System State & OpenSSL Speed Freeze | Fixed JavaScript Temporal Dead Zone `ReferenceError` where `currentBytes` was accessed on source change before its `const` initialization in `home.js`. System state metric now accurately displays `Active` (green) for hardware, `Fallback` (yellow) for OpenSSL fallback, and `Disconnected` for network failure. Added adaptive speed unit formatting (`MB/s` for OpenSSL, `KB/s` for hardware). |
 | 2026-09-21 | Settings Screen: Dynamic Whitening & Source Selection | Added UI dropdowns in Settings (`#settings`) and backend REST endpoints (`GET/POST /settings`) for runtime selection of Whitening Algorithm (32-bit Galois LFSR @ ~14.7 KB/s vs. SHA-256 Block Extraction @ ~7.3 KB/s) and Entropy Source Provider (Hardware ESP32 TRNG vs. OpenSSL Software Fallback). Settings persist to `config/backend_config.json`. Live pipeline animation on Home dynamically displays LFSR or SHA-256 conditioning based on active state. |
 | 2026-09-21 | Dual Whitening Selection (LFSR & SHA-256) | Implemented both 32-bit Galois LFSR polynomial XOR (`whitenPayloadLFSR`, 1:1 ratio, ~14.7 KB/s) and NIST SP 800-90B SHA-256 block extraction (`whitenPayloadSHA256`, 2:1 ratio, ~7.3 KB/s) as separate functions in `SerialEntropySource`. Provided `WhiteningAlgorithm` enum flag with getter/setter. Defaulted/hardcoded to `WhiteningAlgorithm::LFSR` so hardware throughput stays above the Gateway continuous encryption threshold (12 KB/s minimum). |
 | 2026-09-21 | Hardware Sampling Speedup (Option A) & DMA Roadmap | Solved the 3 KB/s bottleneck caused by Arduino's `analogRead()` (~45 µs per call $\times 8$ reads/byte). Updated `PQHardware.ino` to use native ESP-IDF `adc1_get_raw()` (~9.5 µs) and 4-bit nibble extraction (2 sample pairs per byte), yielding ~25–30 KB/s continuous throughput. Removed redundant LED `analogRead()`s, increased serial TX buffer to 1024 bytes, and replaced the backend's 5ms pool throttle with `std::this_thread::yield()`. Documented Option B (ADC DMA continuous mode targeting ~85–90 KB/s) in CONTEXT.md for future implementation. |

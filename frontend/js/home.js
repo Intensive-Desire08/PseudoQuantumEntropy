@@ -105,6 +105,14 @@ window.PQEPollController = window.PQEPollController || {
 
     const counterEl = document.querySelector('[data-pipeline-counter]');
     if (counterEl) counterEl.textContent = '0 / 6';
+
+    const stage4 = document.querySelector('[data-pipeline-step="whitening"]');
+    if (stage4) {
+      const detailEl = stage4.querySelector('[data-step-detail]');
+      if (detailEl) {
+        detailEl.textContent = lastWhitening.includes('sha') ? 'NIST SP 800-90B (2:1 extraction)' : 'Taps: 32,31,29,1,0 (0x80000057)';
+      }
+    }
   }
 
   function setPipelineStep(stepName, state, detail) {
@@ -188,6 +196,39 @@ window.PQEPollController = window.PQEPollController || {
         }
         lastSourceType = currentSourceType;
         lastWhitening = (entropy.whitening || 'lfsr').toLowerCase();
+
+        // Dynamically update home subtitle based on active whitening algorithm
+        const homeSubtitle = document.getElementById('home-subtitle');
+        if (homeSubtitle) {
+          if (lastWhitening.includes('sha')) {
+            homeSubtitle.textContent = 'Real-time telemetry and hardware-backed entropy generation powered by dual-photodiode quantum shot noise, differential ADC sampling, and backend SHA-256 cryptographic conditioning.';
+          } else {
+            homeSubtitle.textContent = 'Real-time telemetry and hardware-backed entropy generation powered by dual-photodiode quantum shot noise, differential ADC sampling, and backend LFSR polynomial whitening.';
+          }
+        }
+
+        // Dynamically update Stage 04 card based on active whitening algorithm
+        const stage4 = document.querySelector('[data-pipeline-step="whitening"]');
+        if (stage4) {
+          const title = stage4.querySelector('[data-stage4-title]');
+          const desc = stage4.querySelector('[data-stage4-desc]');
+          const detail = stage4.querySelector('[data-step-detail]');
+          const isComplete = stage4.classList.contains('complete');
+          const isActive = stage4.classList.contains('active');
+          if (lastWhitening.includes('sha')) {
+            if (title) title.textContent = 'Backend SHA-256 Whitening';
+            if (desc) desc.textContent = 'NIST SP 800-90B compliant SHA-256 cryptographic extraction in C++ backend to eliminate MCU firmware overhead.';
+            if (!isComplete && !isActive && detail) {
+              detail.textContent = 'NIST SP 800-90B (2:1 extraction)';
+            }
+          } else {
+            if (title) title.textContent = 'Backend LFSR Whitening';
+            if (desc) desc.textContent = '32-bit Galois LFSR polynomial XOR whitening in C++ backend to eliminate MCU firmware overhead.';
+            if (!isComplete && !isActive && detail) {
+              detail.textContent = 'Taps: 32,31,29,1,0 (0x80000057)';
+            }
+          }
+        }
 
         let speedStr = 'Calculating...';
 
