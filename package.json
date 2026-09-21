@@ -1,7 +1,7 @@
 {
   "name": "pseudoquantumentropy",
   "version": "1.0.0",
-  "description": "&lt;placeholder>",
+  "description": "PseudoQuantum Entropy Service — Hardware-backed entropy with cryptographic applications",
   "main": "index.js",
   "directories": {
     "doc": "docs"
@@ -11,9 +11,9 @@
     "type": "git",
     "url": "git+https://github.com/Intensive-Desire08/PseudoQuantumEntropy.git"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "keywords": ["entropy", "cryptography", "esp32", "trng", "aes-gcm"],
+  "author": "Ajay Anand A",
+  "license": "MIT",
   "type": "commonjs",
   "bugs": {
     "url": "https://github.com/Intensive-Desire08/PseudoQuantumEntropy/issues"

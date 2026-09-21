@@ -11,7 +11,7 @@
     "entropy": {
         "pool_buffer_size": 8192,
         "pool_refill_threshold": 4096,
-        "source": "hardware",
+        "source": "auto",
         "whitening": "lfsr"
     },
     "http": {

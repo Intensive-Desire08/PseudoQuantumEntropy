@@ -10,7 +10,7 @@
 
 EntropyCollector::EntropyCollector()
     : port("COM3")
-    , baudRate(115200)
+    , baudRate(921600)
     , bufferSize(DEFAULT_BUFFER_SIZE)
     , initialized(false)
     , activeSourceType("none")

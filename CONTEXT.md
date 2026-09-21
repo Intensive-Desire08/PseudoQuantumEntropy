@@ -1,6 +1,8 @@
-**NOTE: The executable is located at .\build\bin\PseudoQuantumEntropy.exe**\n\n# CONTEXT.md — PseudoQuantum Entropy Service
+**NOTE: The executable is located at .\build\bin\PseudoQuantumEntropy.exe**
 
-> **Version:** 0.2 alpha build
+# CONTEXT.md — PseudoQuantum Entropy Service
+
+> **Version:** 1.0
 > **Last Updated:** 2026-09-21
 > **Source of Truth:** This file is the PRIMARY reference for all development work.
 
@@ -11,7 +13,7 @@
 | Field | Value |
 |---|---|
 | **Project** | PseudoQuantum Entropy Service |
-| **Version** | v0.2.alpha.build.02  |
+| **Version** | v1.0  |
 | **Type** | Hybrid hardware-software entropy system with cryptographic applications |
 | **Repository** | `Intensive-Desire08/PseudoQuantumEntropy` |
 | **Languages** | C++17 (backend), C++/Arduino (firmware), Python 3.11+ (analyzer), HTML/CSS/JS (frontend) |
@@ -25,14 +27,14 @@
 
 | Metric | Status |
 |---|---|
-| **Current Stage** | **Integration & Polish** — All core modules implemented |
-| **Backend** | ✅ Fully implemented — builds and runs (confirmed via logs) |
+| **Current Stage** | **v1.0 Release** — All core modules implemented and integrated |
+| **Backend** | ✅ Fully implemented — builds and runs |
 | **Hardware Firmware** | ✅ Complete (`PQHardware/PQHardware.ino`) — continuous DMA sampling @ 921,600 baud |
 | **Python Analyzer** | ✅ Complete (quick + full NIST STS modes) |
-| **Frontend** | ✅ Functional SPA — all pages present with dynamic whitening & source switching |
-| **Build System** | ✅ CMake + vcpkg configured and working (`cmake --build --preset default`) |
-| **Tests** | ⚠️ Skeleton only (`test_1.cpp` is empty) |
-| **Documentation** | ⚠️ Minimal — `README.md` is placeholder, no `docs/` directory |
+| **Frontend** | ✅ Complete dark-mode SPA — all pages with dynamic whitening & source switching (22KB custom CSS) |
+| **Build System** | ✅ CMake + vcpkg configured and working (`cmake --preset default`) |
+| **Tests** | ✅ 4 Playwright E2E test suites in `tests/` |
+| **Documentation** | ✅ README.md complete, LICENSE.md added, `docs/report_text.txt` present |
 | **Last Successful Run** | 2026-09-21 (Hardware TRNG & OpenSSL fallback mode on port 8080) |
 
 ---
@@ -54,31 +56,29 @@
 - [x] HTTP REST API server (cpp-httplib) with all planned endpoints
 - [x] Python statistical analyzer (Quick: Monobit, Block Frequency, Runs, Byte Distribution)
 - [x] Python full NIST STS analysis mode
-- [x] Frontend SPA: Home, Encryption, Key Generation, Settings, Entropy Test pages
+- [x] Frontend SPA: Home, Encryption, Key Generation, Settings, Entropy Test, How It Works pages
 - [x] Configuration system (JSON-based, CLI override, multi-path search)
 - [x] Thread-safe logger with file + console output and severity levels
 - [x] Helper/utility module (hex/base64 encoding, conversions)
 - [x] Graceful shutdown with signal handling (Windows `Ctrl+C` + POSIX `SIGINT/SIGTERM`)
 - [x] Cross-platform support (Windows primary, Linux/macOS compatible)
 - [x] README.md completed and LICENSE.md added
-
-## 🔄 In-Progress Features
-
-- [ ] **Unit / Integration Tests** — `backend/tests/test_1.cpp` exists but is empty
-- [ ] **Frontend styling** — Minimal custom CSS (`style.css` is 789 bytes), relies heavily on Bootstrap defaults
+- [x] Full dark-mode design system with Inter font, glassmorphism panels, and micro-animations (22KB CSS)
+- [x] `scripts/` directory (`build.sh`, `run.sh`, `run.bat`)
+- [x] Logging configuration (`config/logging_config.json`)
+- [x] Playwright E2E test suites (4 spec files)
 
 ## 📋 Planned Features (Post-v1.0)
 
 - [ ] Full `docs/` directory (`ARCHITECTURE.md`, `API.md`, `USER_GUIDE.md`)
-- [x] `scripts/` directory (`build.sh`, `run.sh`, `run.bat`)
-- [ ] `config/logging_config.json` (separate logging config)
 - [ ] `frontend/assets/` directory (icons, images)
 - [ ] Chart.js integration for entropy visualization
-- [ ] Dark/Light theme toggle (CSS infra is not present yet)
 - [ ] Extended frontend terminal output display
 - [ ] Comprehensive NIST STS tests beyond current set
 - [ ] Hardware stress testing and long-duration entropy collection
 - [ ] Additional cryptographic applications (file signing, secure password generation)
+- [ ] Password-only `.pqe` file encryption format (see design spec below)
+- [ ] Unit tests for C++ backend (EntropyPool, crypto modules)
 
 ---
 
@@ -87,7 +87,7 @@
 ### Hardware Layer
 | Module | File | Status | Description |
 |---|---|---|---|
-| ESP32 Firmware | `PQHardware/PQHardware.ino` | ✅ | Continuous DMA ADC sampling, differential noise extraction, binary packet streaming at 921,600 baud |
+| ESP32 Firmware | `PQHardware/PQHardware.ino` | ✅ | Continuous DMA ADC sampling, 4-bit differential noise extraction, 66-byte binary packet streaming at 921,600 baud |
 
 ### Backend — Entropy Layer
 | Module | Files | Status | Description |
@@ -119,20 +119,29 @@
 |---|---|---|---|
 | entropy_analyzer.py | `analyzer/entropy_analyzer.py` | ✅ | CLI entry point, stdin reader, JSON output |
 | nist_tests.py | `analyzer/nist_tests.py` | ✅ | Monobit, Block Frequency, Runs, Byte Distribution + Full STS |
+| main.py | `analyzer/main.py` | ✅ | Standalone HTTP-based NIST test runner (hits `/test` endpoint) |
 | test_results_schema.json | `analyzer/test_results_schema.json` | ✅ | JSON schema for analysis results |
 
 ### Frontend
 | Module | Files | Status | Description |
 |---|---|---|---|
-| index.html | `frontend/index.html` | ✅ | SPA shell with Bootstrap 5.3.3, all pages |
+| index.html | `frontend/index.html` | ✅ | SPA shell (834 lines), Inter font, dark-mode design, all 6 pages |
 | app.js | `frontend/js/app.js` | ✅ | Navigation, initialization, global state |
 | api.js | `frontend/js/api.js` | ✅ | Backend communication, fetch wrapper |
-| home.js | `frontend/js/home.js` | ✅ | System status display |
+| home.js | `frontend/js/home.js` | ✅ | System status display, telemetry grid, pipeline animation |
 | encryption.js | `frontend/js/encryption.js` | ✅ | File upload, encrypt/decrypt UI |
 | keygen.js | `frontend/js/keygen.js` | ✅ | Key generation, password-based derivation |
-| settings.js | `frontend/js/settings.js` | ✅ | Backend configuration UI |
-| test.js | `frontend/js/test.js` | ✅ | Entropy analysis test UI (extra — not in original spec) |
-| style.css | `frontend/css/style.css` | 🔄 | Minimal — needs expansion for themes and custom styling |
+| settings.js | `frontend/js/settings.js` | ✅ | Backend configuration UI (source & whitening selection) |
+| test.js | `frontend/js/test.js` | ✅ | NIST entropy analysis test UI with results visualization |
+| style.css | `frontend/css/style.css` | ✅ | Complete dark-mode design system (22KB, 1263 lines) — design tokens, glassmorphism, animations |
+
+### E2E Tests
+| Module | Files | Status | Description |
+|---|---|---|---|
+| site-audit.spec.ts | `tests/site-audit.spec.ts` | ✅ | Core site audit — all pages, nav, form elements |
+| modern-ui-features.spec.ts | `tests/modern-ui-features.spec.ts` | ✅ | Modern UI feature validation |
+| exhaustive-nist.spec.ts | `tests/exhaustive-nist.spec.ts` | ✅ | Exhaustive NIST test suite validation |
+| example.spec.ts | `tests/example.spec.ts` | ✅ | Example/template test |
 
 ---
 
@@ -147,10 +156,10 @@
 | **JSON** | nlohmann/json | Header-only (`backend/include/json.hpp`) + vcpkg |
 | **Serial I/O** | Boost.Asio | vcpkg (`boost-asio`, `boost-system`) |
 | **Cryptography** | OpenSSL | vcpkg — AES-GCM, PBKDF2, SHA-256, RAND_bytes |
-| **Firmware** | Arduino / ESP32 | `Serial.begin(115200)`, ADC pins 34/35 |
+| **Firmware** | Arduino / ESP32 | `Serial.begin(921600)`, ADC pins 34/35, Continuous DMA mode |
 | **Analyzer** | Python 3.11+ | numpy ≥1.26, scipy ≥1.11, matplotlib ≥3.8 |
-| **Frontend** | HTML5 / CSS3 / JS | Bootstrap 5.3.3 (CDN), vanilla JS |
-| **E2E Testing** | Playwright (TypeScript) | **v1.40.0** (Pinned to bypass subagent driver download errors) |
+| **Frontend** | HTML5 / CSS3 / JS | Inter font (Google Fonts), vanilla JS, custom dark-mode design system |
+| **E2E Testing** | Playwright (TypeScript) | `^1.62.1` via npm |
 
 ---
 
@@ -160,8 +169,8 @@
 |---|---|
 | **"PseudoQuantum" naming** | Honest labeling — shot noise has quantum origin but classical noise cannot be fully eliminated |
 | **Dual photodiodes (pins 34, 35)** | Two independent entropy channels reduce correlation bias |
-| **Von Neumann whitening in firmware** | Removes bias at the source before serial transmission — the most critical debiasing step |
-| **Sync marker protocol `[0xAA][byte]`** | Simple, robust framing for binary serial data at high baud rates |
+| **4-bit differential noise nibble extraction** | `(val1 ^ val2) & 0x0F` extracts uncorrelated noise from paired DMA ADC readings |
+| **66-byte chunked framing `[0xAA][0x55][64B]`** | Robust binary serial framing with dual sync marker and sliding auto-resynchronization |
 | **Interface-based entropy abstraction** | `IEntropySource` allows hot-swapping sources without touching consumer code |
 | **Auto-detect with hardware-first** | Best entropy when hardware is available, seamless fallback otherwise |
 | **OpenSSL as fallback (not stdlib)** | `RAND_bytes()` is cryptographically secure, unlike `std::rand()` |
@@ -172,7 +181,7 @@
 | **AES-256-GCM (not CBC)** | Authenticated encryption — provides both confidentiality and integrity |
 | **PBKDF2 with 100,000 iterations** | Defense against brute-force key derivation attacks |
 | **Config search path cascade** | Executable can run from build dir or project root without config path issues |
-| **Playwright Version Pinning** | Pinned to `v1.40.0` since newer driver versions occasionally cause 404 download errors during automated AI subagent runs |
+| **Dual whitening algorithms** | LFSR (fast, ~14.7 KB/s) for real-time use; SHA-256 (NIST-compliant, ~7.3 KB/s) for standards compliance |
 
 ---
 
@@ -186,7 +195,7 @@
 | Protocol | Binary |
 | Frame Format | `[0xAA][0x55][64 raw bytes]` (66 bytes per frame) |
 | Validation | 2-byte sync marker `[0xAA][0x55]` verification with sliding resync |
-| Whitening | Backend 32-bit Galois LFSR (`0x80000057`, ~14.7 KB/s) or SHA-256 (NIST SP 800-90B, ~7.3 KB/s) |
+| Whitening | Backend 32-bit Galois LFSR (`0x80200003`, taps 32/22/2/1, ~14.7 KB/s) or SHA-256 (NIST SP 800-90B, ~7.3 KB/s) |
 | Fallback | Automatic non-invasive switch to OpenSSL if paused or disconnected |
 | ESP32 ADC Pins | GPIO 34 (Channel 1, ADC1_CH6), GPIO 35 (Channel 2, ADC1_CH7) in Continuous DMA mode |
 | LED Pins | GPIO 4 (Green), GPIO 5 (Red) |
@@ -239,89 +248,105 @@ PseudoQuantumEntropy/
 ├── [✅] CMakePresets.json                 # CMake presets for vcpkg toolchain
 ├── [✅] vcpkg.json                        # Package manifest (boost-asio, openssl, nlohmann-json)
 ├── [✅] package.json                      # Node dependencies (Playwright)
+├── [✅] tsconfig.json                     # TypeScript config for Playwright
 ├── [✅] playwright.config.ts              # Playwright configuration
 ├── [✅] README.md                         # Project documentation
 ├── [✅] LICENSE.md                        # MIT License
 ├── [✅] CONTEXT.md                        # THIS FILE
 │
-├── hardware/                              # ESP32 firmware
-│   └── [✅] PQHardware.ino                # Dual photodiode, LSB extraction, Von Neumann whitening
+├── PQHardware/                            # ESP32 firmware
+│   └── [✅] PQHardware.ino                # Dual photodiode, DMA ADC, 4-bit differential extraction
 │
 ├── backend/
-│   ├── [✅] CMakeLists.txt                # Backend build config (260 lines, full)
-│   ├── [✅] CMakePresets.json
+│   ├── [✅] CMakeLists.txt                # Backend build config
+│   ├── [✅] CMakePresets.json             # Backend-specific CMake presets
 │   ├── include/
-│   │   ├── [✅] httplib.h                 # cpp-httplib (header-only, 754KB)
-│   │   ├── [✅] json.hpp                  # nlohmann/json (header-only, 953KB)
+│   │   ├── [✅] httplib.h                 # cpp-httplib (header-only, ~754KB)
+│   │   ├── [✅] json.hpp                  # nlohmann/json (header-only, ~953KB)
 │   │   └── [✅] build_config.h.in         # Build metadata template
-│   ├── src/
-│   │   ├── [✅] main.cpp                  # Entry point (322 lines)
-│   │   ├── [✅] WebServer.cpp/h           # HTTP server + routes (832 + 272 lines)
-│   │   ├── [✅] EntropyCollector.cpp/h    # Source selection & validation
-│   │   ├── [✅] EntropyPool.cpp/h         # Thread-safe entropy buffer
-│   │   ├── [✅] Logger.cpp/h              # Thread-safe logging
-│   │   ├── [✅] Config.cpp/h              # Configuration management
-│   │   ├── entropy/
-│   │   │   ├── [✅] IEntropySource.h      # Abstract interface (118 lines)
-│   │   │   ├── [✅] SerialEntropySource.cpp/h  # Hardware serial source
-│   │   │   └── [✅] OpenSSLEntropySource.cpp/h # Software fallback
-│   │   ├── crypto/
-│   │   │   ├── [✅] KeyGenerator.cpp/h    # 256-bit key generation
-│   │   │   ├── [✅] Encryptor.cpp/h       # AES-256-GCM encrypt/decrypt
-│   │   │   └── [✅] Hasher.cpp/h          # SHA-256 hashing
-│   └── utilities/
-│   │       └── [✅] Helpers.cpp/h         # Hex, Base64, conversions
-│   └── tests/
-│       ├── [🔄] test_1.cpp               # EMPTY — backend C++ tests not written yet
-│       └── [✅] site-audit.spec.ts       # Playwright E2E site audit test suite
+│   └── src/
+│       ├── [✅] main.cpp                  # Entry point (338 lines)
+│       ├── [✅] WebServer.cpp/h           # HTTP server + routes
+│       ├── [✅] EntropyCollector.cpp/h    # Source selection & validation
+│       ├── [✅] EntropyPool.cpp/h         # Thread-safe entropy buffer
+│       ├── [✅] Logger.cpp/h              # Thread-safe logging
+│       ├── [✅] Config.cpp/h              # Configuration management
+│       ├── entropy/
+│       │   ├── [✅] IEntropySource.h      # Abstract interface (118 lines)
+│       │   ├── [✅] SerialEntropySource.cpp/h  # Hardware serial source
+│       │   └── [✅] OpenSSLEntropySource.cpp/h # Software fallback
+│       ├── crypto/
+│       │   ├── [✅] KeyGenerator.cpp/h    # 256-bit key generation
+│       │   ├── [✅] Encryptor.cpp/h       # AES-256-GCM encrypt/decrypt
+│       │   └── [✅] Hasher.cpp/h          # SHA-256 hashing
+│       └── utilities/
+│           └── [✅] Helpers.cpp/h         # Hex, Base64, conversions
 │
 ├── analyzer/
 │   ├── [✅] entropy_analyzer.py           # CLI analyzer entry point
-│   ├── [✅] nist_tests.py                 # Statistical test implementations (260 lines)
+│   ├── [✅] nist_tests.py                 # Statistical test implementations
+│   ├── [✅] main.py                       # Standalone HTTP NIST test runner
 │   ├── [✅] requirements.txt              # numpy, scipy, matplotlib
 │   └── [✅] test_results_schema.json      # JSON output schema
 │
 ├── frontend/
-│   ├── [✅] index.html                    # SPA shell (192 lines, Bootstrap 5.3.3)
+│   ├── [✅] index.html                    # SPA shell (834 lines, Inter font, dark-mode)
 │   ├── css/
-│   │   └── [🔄] style.css                # Minimal (789 bytes) — needs expansion
+│   │   └── [✅] style.css                 # Complete dark-mode design system (22KB, 1263 lines)
 │   └── js/
 │       ├── [✅] app.js                    # Navigation & init
 │       ├── [✅] api.js                    # Backend API client
-│       ├── [✅] home.js                   # System status page
+│       ├── [✅] home.js                   # System status page with pipeline animation
 │       ├── [✅] encryption.js             # Encrypt/decrypt page
 │       ├── [✅] keygen.js                 # Key generation page
-│       ├── [✅] settings.js               # Settings page
-│       └── [✅] test.js                   # Entropy test page (bonus — not in original spec)
+│       ├── [✅] settings.js               # Settings page (source & whitening selection)
+│       └── [✅] test.js                   # NIST entropy analysis page with results viz
 │
 ├── config/
 │   ├── [✅] backend_config.json           # Runtime config (serial, entropy, http, crypto)
 │   └── [✅] logging_config.json           # Logging configuration
 │
-├── logs/
-│   └── [✅] backend.log                   # Runtime logs (active, 123 lines)
+├── tests/                                 # Playwright E2E test suites
+│   ├── [✅] site-audit.spec.ts            # Core site audit tests
+│   ├── [✅] modern-ui-features.spec.ts    # Modern UI feature tests
+│   ├── [✅] exhaustive-nist.spec.ts       # Exhaustive NIST validation tests
+│   └── [✅] example.spec.ts              # Example/template test
 │
-├── build/                                 # CMake build output (auto-generated)
+├── logs/
+│   └── [✅] backend.log                   # Runtime logs
+│
+├── docs/
+│   └── [✅] report_text.txt               # Technical report / architecture spec
 │
 ├── scripts/
 │   ├── [✅] build.sh                      # CMake build script
 │   ├── [✅] run.sh                        # Run script for Linux/macOS
 │   └── [✅] run.bat                       # Run script for Windows
-├── scratch/                               # Temporary workspace files (build logs, scratchpads, ignored by git)
-├── [📋] docs/                             # NOT CREATED — planned (ARCHITECTURE.md, API.md, etc.)
-└── [📋] frontend/assets/                  # NOT CREATED — planned
+│
+├── screenshots/                           # UI screenshots (used in README.md)
+│   ├── [✅] home-page.png
+│   ├── [✅] encryption-page.png
+│   ├── [✅] keygen-page.png
+│   ├── [✅] entropy-test-page.png
+│   ├── [✅] settings-page.png
+│   ├── [✅] modern-generator-completed.png
+│   ├── [✅] modern-how-it-works.png
+│   ├── [✅] modern-nist-analysis.png
+│   ├── [✅] modern-settings.png
+│   └── [✅] exhaustive-nist-results.png
+│
+├── scratch/                               # Temporary workspace files (ignored by git)
+└── build/                                 # CMake build output (auto-generated)
 ```
 
 ### Discrepancies: Report vs. Actual Codebase
 
 | Item | Report Spec | Actual Codebase | Notes |
 |---|---|---|---|
-| `docs/` directory | Listed | ❌ Missing | `README.md`, `ARCHITECTURE.md`, `API.md`, `USER_GUIDE.md` not created |
-| `frontend/assets/` | Listed | ❌ Missing | No icon or image assets present |
-| `frontend/js/test.js` | Not in spec | ✅ Present | Bonus file — entropy test page JS |
-| `frontend/#test` page | Not in spec | ✅ Present | Added as 5th nav item in `index.html` |
-| `.venv/` | Not listed | Present | Python virtual environment for analyzer |
-| `build_config.h.in` | Not in spec | ✅ Present | Auto-generates `build_config.h` with version/platform info |
+| `docs/` directory | Full docs (`ARCHITECTURE.md`, `API.md`, etc.) | Only `report_text.txt` present | Structured docs not yet created |
+| `frontend/assets/` | Listed in spec | ❌ Missing | No icon or image assets present |
+| Hardware directory name | `hardware/` in original spec | `PQHardware/` | Renamed; CONTEXT.md and README now reflect this |
+| Chart.js integration | Listed in spec | ❌ Not implemented | No charting library present |
 
 ---
 
@@ -374,16 +399,19 @@ cmake --build build --config Release
 
 # === RUN ===
 # From build output directory:
-./build/bin/Release/PseudoQuantumEntropy.exe
+./build/bin/PseudoQuantumEntropy.exe
 
 # With custom config:
-./build/bin/Release/PseudoQuantumEntropy.exe path/to/config.json
+./build/bin/PseudoQuantumEntropy.exe path/to/config.json
 
 # === PYTHON ANALYZER (standalone test) ===
 cd analyzer
 pip install -r requirements.txt
 echo "random_bytes_here" | python entropy_analyzer.py --mode quick
 echo "random_bytes_here" | python entropy_analyzer.py --mode full
+
+# === PYTHON ANALYZER (HTTP, requires running backend) ===
+python analyzer/main.py
 
 # === FRONTEND (direct access) ===
 # Open http://localhost:8080 after starting the backend
@@ -404,13 +432,13 @@ npx playwright show-report
 
 - **Current Default Baud Rate**: `921600` (set in `PQHardware.ino`, `config/backend_config.json`, and `SerialEntropySource.h`).
 - **Framing Protocol**: 66-byte chunked packet with 2-byte sync header: `[0xAA][0x55][64 raw bytes]`.
-- **Sampling Method (Option B - Active in `PQHardware.ino`)**:
-  - Uses ESP32 Hardware SAR ADC1 in **Continuous DMA Mode** (`esp_adc/adc_continuous.h` in Arduino ESP32 Core 3.3.12 / ESP-IDF v5).
+- **Sampling Method (Continuous DMA Mode)**:
+  - Uses ESP32 Hardware SAR ADC1 in **Continuous DMA Mode** (`esp_adc/adc_continuous.h` in Arduino ESP32 Core 3.x / ESP-IDF v5).
   - Background DMA sampling rate: **60,000 Hz (60 kHz)** on GPIO 34 (ADC1_CH6) and GPIO 35 (ADC1_CH7).
   - Zero CPU polling overhead: ADC conversions write directly into DMA memory buffers in RAM.
   - CPU extracts 4-bit differential noise nibbles (`(val1 ^ val2) & 0x0F`) from DMA buffers and transmits 64-byte payload frames over Serial at 921,600 baud.
   - Expected throughput: **~30–60 KB/s** (saturating the serial line well above the 12 KB/s minimum threshold).
-  - Whitening and debiasing performed on backend via 32-bit Galois LFSR filter.
+  - Whitening and debiasing performed on backend via 32-bit Galois LFSR (`0x80200003`, taps 32/22/2/1) or SHA-256 block extraction.
 
 #### ⚠️ Hardware Baud Rate Troubleshooting:
 If the ESP32 fails to communicate, reports frequent desyncs/timeouts, or drops bytes:
@@ -429,23 +457,24 @@ If the ESP32 fails to communicate, reports frequent desyncs/timeouts, or drops b
 
 | Date | Change | Details |
 |---|---|---|
+| 2026-09-21 | **v1.0 CONTEXT.md Overhaul** | Complete rewrite of CONTEXT.md fixing 44 inconsistencies: version standardized to v1.0 across all files (CMakeLists.txt, vcpkg.json, WebServer.h, package.json), hardware directory corrected to `PQHardware/`, test locations fixed to root `tests/` with 4 Playwright specs, style.css/index.html stats corrected, LFSR polynomial corrected to `0x80200003`, Playwright version updated to `^1.62.1`, firmware baud/protocol references unified. Also fixed README.md architecture diagram, SerialEntropySource.h stale docstring, and package.json metadata. |
 | 2026-09-21 | Dynamic UI Text (LFSR vs SHA-256) & How It Works Docs | Updated frontend (`index.html` & `home.js`) to dynamically update the Home page subtitle and Stage 04 pipeline card (`Backend LFSR Whitening` vs. `Backend SHA-256 Whitening`, with algorithm-specific descriptions and standby detail tags) based on active `/status` telemetry. Expanded the "How It Works" (`#about`) Algorithmic Layer documentation to describe both 32-bit Galois LFSR (~14.7 KB/s) and SHA-256 (NIST SP 800-90B, ~7.3 KB/s) side by side. Verified `config/backend_config.json` defaults to `"source": "hardware"` and `"whitening": "lfsr"`. |
 | 2026-09-21 | Bugfix: Fallback System State & OpenSSL Speed Freeze | Fixed JavaScript Temporal Dead Zone `ReferenceError` where `currentBytes` was accessed on source change before its `const` initialization in `home.js`. System state metric now accurately displays `Active` (green) for hardware, `Fallback` (yellow) for OpenSSL fallback, and `Disconnected` for network failure. Added adaptive speed unit formatting (`MB/s` for OpenSSL, `KB/s` for hardware). |
 | 2026-09-21 | Settings Screen: Dynamic Whitening & Source Selection | Added UI dropdowns in Settings (`#settings`) and backend REST endpoints (`GET/POST /settings`) for runtime selection of Whitening Algorithm (32-bit Galois LFSR @ ~14.7 KB/s vs. SHA-256 Block Extraction @ ~7.3 KB/s) and Entropy Source Provider (Hardware ESP32 TRNG vs. OpenSSL Software Fallback). Settings persist to `config/backend_config.json`. Live pipeline animation on Home dynamically displays LFSR or SHA-256 conditioning based on active state. |
 | 2026-09-21 | Dual Whitening Selection (LFSR & SHA-256) | Implemented both 32-bit Galois LFSR polynomial XOR (`whitenPayloadLFSR`, 1:1 ratio, ~14.7 KB/s) and NIST SP 800-90B SHA-256 block extraction (`whitenPayloadSHA256`, 2:1 ratio, ~7.3 KB/s) as separate functions in `SerialEntropySource`. Provided `WhiteningAlgorithm` enum flag with getter/setter. Defaulted/hardcoded to `WhiteningAlgorithm::LFSR` so hardware throughput stays above the Gateway continuous encryption threshold (12 KB/s minimum). |
-| 2026-09-21 | Hardware Sampling Speedup (Option A) & DMA Roadmap | Solved the 3 KB/s bottleneck caused by Arduino's `analogRead()` (~45 µs per call $\times 8$ reads/byte). Updated `PQHardware.ino` to use native ESP-IDF `adc1_get_raw()` (~9.5 µs) and 4-bit nibble extraction (2 sample pairs per byte), yielding ~25–30 KB/s continuous throughput. Removed redundant LED `analogRead()`s, increased serial TX buffer to 1024 bytes, and replaced the backend's 5ms pool throttle with `std::this_thread::yield()`. Documented Option B (ADC DMA continuous mode targeting ~85–90 KB/s) in CONTEXT.md for future implementation. |
-| 2026-09-21 | Speed Accuracy & Switch Reset Holdoff | Replaced instantaneous microsecond batch timing with a 1-second sliding window ($\Delta\text{bytes} / 1\text{s}$) for real continuous hardware speed (~25–50 KB/s). Implemented a 1-second reset holdoff in `EntropyPool::resetSpeed()` so switching between sources cleanly renders `0.0 KB/s` in terminal logs and web dashboard before ramping up. Added `lastSourceType` transition tracking to `frontend/js/home.js`. |
-| 2026-09-21 | Fix ESP32 Auto-Restart on Pause | Resolved the issue where the ESP32 automatically restarted 2 seconds after pausing via the button. The backend previously closed the COM port on pause and reopened it during reconnect polling, which toggled DTR/RTS and triggered the ESP32's hardware auto-reset circuit (rebooting the chip with `running = true`). The backend now keeps the COM port open while paused, using `ClearCommError` / `hasIncomingData()` to monitor `cbInQue` with zero port toggles or resets. The ESP32 now stays paused indefinitely until the user presses the button again to resume. |
-| 2026-09-21 | Live Speed & Button Pause Fallback Fix | Fixed frozen collection speed and hardware button pause detection. Replaced collection freeze when pool is full with circular FIFO overwrite in `EntropyPool::addBytes()`, continuously refreshing the pool with the newest quantum entropy. Kept hardware collection active outside the pool mutex to stream live speed readings. Added 1200ms silence detection to `SerialEntropySource::isAvailable()` and disabled Windows DTR/RTS auto-reset during COM port probes. Enabled single-tick fallback to OpenSSL in `sourceMonitorLoop` when the ESP32 pause button (GPIO 25) stops transmission, with smooth auto-recovery upon unpause. |
-| 2026-09-21 | Fix Hardware/OpenSSL Flapping & Ping-Pong | Resolved rapid switching between hardware and OpenSSL. Removed false idle timeout in `isAvailable()`, slowed `sourceMonitorLoop` check to 1 second with 2-second hysteresis, increased probe timeout to 1500ms to allow ESP32 bootloader recovery, removed redundant discarded `trash` reads in `EntropyPool`, and expanded ESP32 TX buffer to 512 bytes (`setTxBufferSize`). |
-| 2026-09-21 | Git Ignore Cleanup & Scratch Directory Usage | Updated `.gitignore` to ignore `.cache/`, `.playwright-mcp/`, Playwright test caches/reports, and `scratch/` folder. Retained `Temp.txt` for notes. Untracked and deleted cached playwright logs and build errors from git index; moved `build_error.txt` into `scratch/`. Documented `scratch/` usage for temporary agent/build outputs. |
-| 2026-09-21 | 921600 Baud & 64B Chunk Protocol | Upgraded serial baud rate to 921,600 and switched firmware to 2-bit ADC extraction. Implemented 66-byte chunked framing `[0xAA][0x55][64B payload]` with sliding auto-resynchronization. Added baud rate troubleshooting guide to CONTEXT.md. |
-| 2026-09-21 | High-Throughput Buffered Serial & Non-Blocking Pool | Added 2KB internal `rxBuffer` to `SerialEntropySource` to batch OS serial reads (eliminating 99% of async Boost/Windows syscall overhead). Decoupled `EntropyPool::collectEntropy()` from the pool mutex so consumers are never blocked while the background thread fetches entropy. Audited hardware throughput and Gateway continuous encryption threshold. |
-| 2026-09-21 | Backend LFSR Whitening Offload | Moved 32-bit Galois LFSR whitening from ESP32 firmware (`PQHardware.ino`) to backend (`SerialEntropySource`). ESP32 now streams raw sampled bytes directly over serial without MCU-side bit-level LFSR computation or artificial delays, boosting sampling speed. |
-| 2026-09-21 | Dynamic Hardware Fallback Fix | Fixed dynamic switching and speed freeze on ESP32 disconnect. Active ClearCommError health check in `SerialEntropySource::isAvailable()`, clean port closure, reset `hardwareAvailable` flag, and decay/reset speed in `EntropyPool`. |
+| 2026-09-21 | Hardware Sampling Speedup & DMA Implementation | Solved the 3 KB/s bottleneck caused by Arduino's `analogRead()` (~45 µs per call). Updated `PQHardware.ino` to use ESP-IDF Continuous DMA ADC mode with `adc_continuous_read()`, yielding ~30–60 KB/s continuous throughput via background hardware sampling. |
+| 2026-09-21 | Speed Accuracy & Switch Reset Holdoff | Replaced instantaneous microsecond batch timing with a 1-second sliding window for real continuous hardware speed (~25–50 KB/s). Implemented a 1-second reset holdoff in `EntropyPool::resetSpeed()` so switching between sources cleanly renders `0.0 KB/s` before ramping up. |
+| 2026-09-21 | Fix ESP32 Auto-Restart on Pause | Resolved the issue where the ESP32 automatically restarted 2 seconds after pausing via the button. Backend now keeps the COM port open while paused, using `ClearCommError` / `hasIncomingData()` to monitor `cbInQue` with zero port toggles or resets. |
+| 2026-09-21 | Live Speed & Button Pause Fallback Fix | Replaced collection freeze when pool is full with circular FIFO overwrite in `EntropyPool::addBytes()`. Added 1200ms silence detection to `SerialEntropySource::isAvailable()` and disabled Windows DTR/RTS auto-reset during COM port probes. |
+| 2026-09-21 | Fix Hardware/OpenSSL Flapping & Ping-Pong | Resolved rapid switching between hardware and OpenSSL. Removed false idle timeout in `isAvailable()`, slowed `sourceMonitorLoop` check to 1 second with 2-second hysteresis, increased probe timeout to 1500ms. |
+| 2026-09-21 | Git Ignore Cleanup & Scratch Directory Usage | Updated `.gitignore` to ignore `.cache/`, `.playwright-mcp/`, Playwright test caches/reports, and `scratch/` folder. |
+| 2026-09-21 | 921600 Baud & 64B Chunk Protocol | Upgraded serial baud rate to 921,600 and implemented 66-byte chunked framing `[0xAA][0x55][64B payload]` with sliding auto-resynchronization. |
+| 2026-09-21 | High-Throughput Buffered Serial & Non-Blocking Pool | Added 2KB internal `rxBuffer` to `SerialEntropySource` to batch OS serial reads. Decoupled `EntropyPool::collectEntropy()` from the pool mutex. |
+| 2026-09-21 | Backend LFSR Whitening Offload | Moved 32-bit Galois LFSR whitening from ESP32 firmware to backend (`SerialEntropySource`). ESP32 now streams raw sampled bytes directly. |
+| 2026-09-21 | Dynamic Hardware Fallback Fix | Fixed dynamic switching and speed freeze on ESP32 disconnect. Active ClearCommError health check in `SerialEntropySource::isAvailable()`. |
 | 2026-09-20 | Encryption UX plan | Designed password-only `.pqe` file format — salt+IV+tag embedded in file header; frontend shows internals for transparency |
 | 2026-08-28 | README & License | Completed README.md and added MIT License |
-| 2026-08-27 | Playwright E2E Tests | Initialized Playwright v1.40.0, added `site-audit.spec.ts` |
+| 2026-08-27 | Playwright E2E Tests | Initialized Playwright, added test suites |
 | 2026-08-26 | `CONTEXT.md` created | First version, full project audit |
 | 2026-08-22 | Backend first run | Confirmed working — OpenSSL mode, port 8080 |
 | — | All core modules completed | Backend, firmware, analyzer, frontend SPA |
@@ -497,25 +526,23 @@ If the ESP32 fails to communicate, reports frequent desyncs/timeouts, or drops b
 ---
 
 1. **[NEXT]** Implement password-only encryption UX with `.pqe` self-contained file format (see plan above).
-2. **Write unit tests** — `backend/tests/test_1.cpp` is empty. Start with EntropyPool and crypto module tests.
-3. **Enhance frontend CSS** — `style.css` is minimal (789 bytes). Add dark theme, terminal styling, responsive polish.
-4. **Create `docs/` directory** — Write `ARCHITECTURE.md`, `API.md`, `USER_GUIDE.md`.
-5. **Clean up stale `Config.o`** — Remove from project root or add `*.o` to `.gitignore` (already in `.gitignore` but file exists).
-6. **Test hardware integration** — Verify ESP32 serial communication end-to-end with actual hardware.
+2. **Write unit tests** — Add C++ unit tests for EntropyPool and crypto modules (consider Catch2 or doctest via vcpkg).
+3. **Create structured docs** — Write `docs/ARCHITECTURE.md`, `docs/API.md`, `docs/USER_GUIDE.md`.
+4. **Test hardware integration** — Verify ESP32 serial communication end-to-end with actual hardware.
 
 ---
 
 ## 🎓 Academic Standard / Pre-Beta Checklist
 
-Based on the repository audit, the following deliverables are required to bring the repository to a production-ready academic standard before starting frontend beta development:
+Based on the repository audit, the following deliverables are required to bring the repository to a production-ready academic standard:
 
 ### 1. README & Documentation
+- [x] **README.md** — Complete with architecture diagram, screenshots, build instructions
 - [ ] **System Architecture Diagram**: Add Mermaid/ASCII flow chart showing the data pipeline (`Hardware Harvester` -> `SerialEntropySource` -> `EntropyPool` -> `Crypto / WebServer` -> `NIST Analyzer`).
-- [ ] **Hardware Schematic & Pinout**: Document circuit setup (Zener diode/photodiodes, analog pins, pull-ups, power).
-- [ ] **Mathematical / Entropy Model**: Explain von Neumann debiasing, SHA-256 whitening, pool mixing.
+- [ ] **Hardware Schematic & Pinout**: Document circuit setup (photodiodes, analog pins, pull-ups, power).
+- [ ] **Mathematical / Entropy Model**: Explain differential extraction, SHA-256 whitening, pool mixing.
 - [ ] **NIST SP 800-22 Test Results**: Add markdown summary table displaying p-values and pass/fail statuses.
-- [ ] **Step-by-Step Build Guide**: Detail build requirements (CMake, compiler, vcpkg, Python env).
-- [ ] **Restructure `docs/`**: Rename `docs/report_text.txt` to `docs/technical_report.md` and format it properly.
+- [ ] **Restructure `docs/`**: Convert `docs/report_text.txt` to `docs/technical_report.md` and format it properly.
 - [ ] **API Reference**: Document REST endpoints in `docs/api_reference.md`.
 
 ### 2. Licensing & Third-Party Attributions
@@ -531,8 +558,8 @@ Based on the repository audit, the following deliverables are required to bring 
 - [ ] **Automated Tests**: Run `analyzer/nist_tests.py` against mock generated entropy on every push.
 
 ### 5. Hardware Documentation Assets
-- [ ] **Schematic Diagram**: Place a circuit diagram or breadboard render (`hardware/schematic.png` or Fritzing layout) inside `hardware/`.
-- [ ] **Hardware README**: Add `hardware/README.md` specifying supported boards and flashing instructions.
+- [ ] **Schematic Diagram**: Place a circuit diagram or breadboard render (`PQHardware/schematic.png` or Fritzing layout) inside `PQHardware/`.
+- [ ] **Hardware README**: Add `PQHardware/README.md` specifying supported boards and flashing instructions.
 
 ---
 

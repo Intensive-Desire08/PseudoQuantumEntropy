@@ -27,7 +27,7 @@ class EntropyPool;
  * @code
  * EntropyCollector collector;
  * collector.detectSources();
- * collector.initialize("COM3", 115200);
+ * collector.initialize("COM3", 921600);
  * auto bytes = collector.getEntropy(32);
  * @endcode
  */
@@ -56,13 +56,13 @@ public:
      * Tries hardware first, falls back to OpenSSL if hardware is unavailable.
      * 
      * @param port Serial port name (e.g., "COM3" on Windows)
-     * @param baudRate Serial baud rate (default: 115200)
+     * @param baudRate Serial baud rate (default: 921600)
      * @param bufferSize Size of entropy pool buffer (default: 4096)
      * @return true if initialization succeeded
      */
     bool initialize(
         const std::string& port = "COM3",
-        unsigned int baudRate = 115200,
+        unsigned int baudRate = 921600,
         size_t bufferSize = 4096
     );
 
@@ -78,7 +78,7 @@ public:
     bool initializeWithSource(
         const std::string& sourceType,
         const std::string& port = "COM3",
-        unsigned int baudRate = 115200,
+        unsigned int baudRate = 921600,
         size_t bufferSize = 4096
     );
 

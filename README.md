@@ -59,12 +59,12 @@ The result is a system I'm genuinely proud of: hardware-first, efficient, extens
   │                                               │
   │   Python Analyzer (subprocess, JSON I/O)      │
   └──────────────────┬────────────────────────────┘
-                     │ Serial USB (115200 baud)
+                     │ Serial USB (921,600 baud)
                      ▼
   ┌───────────────────────────────────────────────┐
   │         ESP32 HARDWARE                        │
-  │  Dual Photodiodes → ADC → LSB → Von Neumann   │
-  │  Output: [0xAA][Random Byte] per frame        │
+  │  Dual Photodiodes → DMA ADC → 4-bit Diff XOR  │
+  │  Output: [0xAA][0x55][64B payload] per frame  │
   └───────────────────────────────────────────────┘
 ```
 
@@ -133,7 +133,7 @@ echo "random_bytes" | python entropy_analyzer.py --mode full
 
 ### ESP32 Firmware
 
-1. Open `hardware/PQHardware.ino` in Arduino IDE
+1. Open `PQHardware/PQHardware.ino` in Arduino IDE
 2. Select Board → **ESP32 Dev Module**
 3. Upload via USB
 
@@ -163,7 +163,7 @@ npx playwright show-report
 
 ```
 PseudoQuantumEntropy/
-├── hardware/           # ESP32 firmware (PQHardware.ino)
+├── PQHardware/         # ESP32 firmware (PQHardware.ino)
 ├── backend/
 │   ├── src/
 │   │   ├── entropy/    # IEntropySource, Serial, OpenSSL sources
@@ -171,12 +171,12 @@ PseudoQuantumEntropy/
 │   │   ├── utilities/  # Hex/Base64 helpers
 │   │   ├── WebServer   # REST API (cpp-httplib)
 │   │   └── main.cpp    # Entry point & graceful shutdown
-│   ├── include/        # Header-only libs (httplib.h, json.hpp)
-│   └── tests/          # Unit & E2E tests
+│   └── include/        # Header-only libs (httplib.h, json.hpp)
 ├── analyzer/           # Python NIST STS analyzer
 ├── frontend/           # SPA (HTML/CSS/JS + Bootstrap 5)
 ├── config/             # Runtime JSON configuration
 ├── scripts/            # Build & run scripts
+├── tests/              # Playwright E2E test suites
 └── docs/               # Documentation
 ```
 

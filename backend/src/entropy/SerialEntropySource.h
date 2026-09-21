@@ -23,9 +23,9 @@
  * The ESP32 outputs entropy bytes with a sync marker (0xAA).
  * 
  * Protocol:
- * - Baud Rate: 115200
- * - Format: [0xAA][Random Byte]
- * - The 0xAA sync marker ensures proper byte alignment
+ * - Baud Rate: 921600
+ * - Format: [0xAA][0x55][64 raw bytes] (66-byte chunked frames)
+ * - Dual sync marker [0xAA][0x55] ensures robust frame alignment
  * 
  * Features:
  * - Automatic hardware detection
@@ -39,7 +39,7 @@ public:
     /**
      * @brief Constructor
      * @param port Serial port name (e.g., "COM3" on Windows, "/dev/ttyUSB0" on Linux)
-     * @param baudRate Communication speed (default: 115200)
+     * @param baudRate Communication speed (default: 921600)
      * @param timeout Read timeout in milliseconds (default: 5000ms)
      */
     explicit SerialEntropySource(
