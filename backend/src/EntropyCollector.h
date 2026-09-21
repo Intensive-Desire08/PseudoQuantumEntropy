@@ -9,6 +9,8 @@
 
 // Forward declarations
 class IEntropySource;
+class SerialEntropySource;
+class OpenSSLEntropySource;
 class EntropyPool;
 
 /**
@@ -238,8 +240,10 @@ private:
      */
     void sourceMonitorLoop();
 
-    // Entropy source
+    // Entropy sources
     std::shared_ptr<IEntropySource> entropySource;
+    std::shared_ptr<SerialEntropySource> hardwareSource;
+    std::shared_ptr<OpenSSLEntropySource> openSSLSource;
     std::unique_ptr<EntropyPool> entropyPool;
 
     // Configuration

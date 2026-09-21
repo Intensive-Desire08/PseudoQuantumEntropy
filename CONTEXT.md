@@ -1,7 +1,7 @@
 **NOTE: The executable is located at .\build\bin\PseudoQuantumEntropy.exe**\n\n# CONTEXT.md — PseudoQuantum Entropy Service
 
 > **Version:** 0.2 alpha build
-> **Last Updated:** 2026-09-20
+> **Last Updated:** 2026-09-21
 > **Source of Truth:** This file is the PRIMARY reference for all development work.
 
 ---
@@ -406,6 +406,7 @@ If the ESP32 fails to communicate, reports frequent desyncs/timeouts, or drops b
 
 | Date | Change | Details |
 |---|---|---|
+| 2026-09-21 | Fix ESP32 Auto-Restart on Pause | Resolved the issue where the ESP32 automatically restarted 2 seconds after pausing via the button. The backend previously closed the COM port on pause and reopened it during reconnect polling, which toggled DTR/RTS and triggered the ESP32's hardware auto-reset circuit (rebooting the chip with `running = true`). The backend now keeps the COM port open while paused, using `ClearCommError` / `hasIncomingData()` to monitor `cbInQue` with zero port toggles or resets. The ESP32 now stays paused indefinitely until the user presses the button again to resume. |
 | 2026-09-21 | Live Speed & Button Pause Fallback Fix | Fixed frozen collection speed and hardware button pause detection. Replaced collection freeze when pool is full with circular FIFO overwrite in `EntropyPool::addBytes()`, continuously refreshing the pool with the newest quantum entropy. Kept hardware collection active outside the pool mutex to stream live speed readings. Added 1200ms silence detection to `SerialEntropySource::isAvailable()` and disabled Windows DTR/RTS auto-reset during COM port probes. Enabled single-tick fallback to OpenSSL in `sourceMonitorLoop` when the ESP32 pause button (GPIO 25) stops transmission, with smooth auto-recovery upon unpause. |
 | 2026-09-21 | Fix Hardware/OpenSSL Flapping & Ping-Pong | Resolved rapid switching between hardware and OpenSSL. Removed false idle timeout in `isAvailable()`, slowed `sourceMonitorLoop` check to 1 second with 2-second hysteresis, increased probe timeout to 1500ms to allow ESP32 bootloader recovery, removed redundant discarded `trash` reads in `EntropyPool`, and expanded ESP32 TX buffer to 512 bytes (`setTxBufferSize`). |
 | 2026-09-21 | Git Ignore Cleanup & Scratch Directory Usage | Updated `.gitignore` to ignore `.cache/`, `.playwright-mcp/`, Playwright test caches/reports, and `scratch/` folder. Retained `Temp.txt` for notes. Untracked and deleted cached playwright logs and build errors from git index; moved `build_error.txt` into `scratch/`. Documented `scratch/` usage for temporary agent/build outputs. |

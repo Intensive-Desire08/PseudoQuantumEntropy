@@ -152,6 +152,24 @@ public:
      */
     void flushBuffer();
 
+    /**
+     * @brief Check if the serial port is open and valid (USB connected)
+     * @return true if the port is open and device is connected
+     */
+    bool isPortOpen() const;
+
+    /**
+     * @brief Check if new incoming bytes are waiting in the serial buffer
+     * @return true if bytes are available in the input queue
+     */
+    bool hasIncomingData();
+
+    /**
+     * @brief Resume entropy reception after a pause
+     * @return true if sync lock succeeded and new bytes are ready
+     */
+    bool resumeFromPause();
+
 private:
     /**
      * @brief Test the connection to the ESP32
@@ -201,12 +219,6 @@ private:
      * @throws EntropyException if write fails
      */
     void writeBytes(const std::vector<uint8_t>& data);
-
-    /**
-     * @brief Check if the serial port is open and valid
-     * @return true if the port is open
-     */
-    bool isPortOpen() const;
 
     // Serial port configuration
     std::string portName;

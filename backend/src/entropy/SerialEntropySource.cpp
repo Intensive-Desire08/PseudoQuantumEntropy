@@ -230,11 +230,97 @@ void SerialEntropySource::flushBuffer() {
         return;
     }
 
+#ifdef _WIN32
+    HANDLE handle = serialPort.native_handle();
+    if (handle != INVALID_HANDLE_VALUE && handle != NULL) {
+        PurgeComm(handle, PURGE_RXCLEAR | PURGE_RXABORT);
+    }
+#endif
+
     rxHead = 0;
     rxTail = 0;
     packetHead = 0;
     packetTail = 0;
     discardBuffer.clear();
+#endif
+}
+
+bool SerialEntropySource::isPortOpen() const {
+#if !PQT_HAS_BOOST_ASIO
+    return false;
+#else
+    std::unique_lock<std::mutex> lock(mutex, std::try_to_lock);
+    if (!serialPort.is_open()) {
+        return false;
+    }
+
+#ifdef _WIN32
+    HANDLE handle = const_cast<boost::asio::serial_port&>(serialPort).native_handle();
+    if (handle == INVALID_HANDLE_VALUE || handle == NULL) {
+        return false;
+    }
+
+    DWORD commErrors = 0;
+    COMSTAT comStat;
+    if (!ClearCommError(handle, &commErrors, &comStat)) {
+        return false;
+    }
+#endif
+
+    return true;
+#endif
+}
+
+bool SerialEntropySource::hasIncomingData() {
+#if !PQT_HAS_BOOST_ASIO
+    return false;
+#else
+    if (rxHead < rxTail) {
+        return true;
+    }
+
+    if (!serialPort.is_open()) {
+        return false;
+    }
+
+#ifdef _WIN32
+    HANDLE handle = serialPort.native_handle();
+    if (handle == INVALID_HANDLE_VALUE || handle == NULL) {
+        return false;
+    }
+
+    DWORD commErrors = 0;
+    COMSTAT comStat;
+    if (!ClearCommError(handle, &commErrors, &comStat)) {
+        return false;
+    }
+
+    return comStat.cbInQue > 0;
+#else
+    return false;
+#endif
+#endif
+}
+
+bool SerialEntropySource::resumeFromPause() {
+#if !PQT_HAS_BOOST_ASIO
+    return false;
+#else
+    std::lock_guard<std::mutex> lock(mutex);
+    flushBuffer();
+    try {
+        if (syncToMarker()) {
+            initialized.store(true);
+            available.store(true);
+            lastByteReceivedTimeMs.store(std::chrono::duration_cast<std::chrono::milliseconds>(
+                std::chrono::steady_clock::now().time_since_epoch()
+            ).count());
+            return true;
+        }
+    } catch (...) {
+        return false;
+    }
+    return false;
 #endif
 }
 
@@ -362,13 +448,11 @@ uint8_t SerialEntropySource::readByte() {
             ioContext.poll();
         } catch (...) {}
         available.store(false);
-        initialized.store(false);
         throw EntropyException("Timeout reading from serial port");
     }
     
     if (read_ec) {
         available.store(false);
-        initialized.store(false);
         throw EntropyException("Failed to read from serial port: " + read_ec.message());
     }
     
@@ -407,7 +491,6 @@ uint8_t SerialEntropySource::readEntropyPacket() {
 
         if (currentTime - startTime > timeoutMs) {
             available.store(false);
-            initialized.store(false);
             throw EntropyException("Timeout waiting for packet sync header [0xAA][0x55]");
         }
 

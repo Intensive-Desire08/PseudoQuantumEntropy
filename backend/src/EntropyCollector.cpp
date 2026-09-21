@@ -163,10 +163,17 @@ void EntropyCollector::shutdown() {
         entropyPool.reset();
     }
     
-    if (entropySource) {
-        entropySource->shutdown();
-        entropySource.reset();
+    if (hardwareSource) {
+        hardwareSource->shutdown();
+        hardwareSource.reset();
     }
+
+    if (openSSLSource) {
+        openSSLSource->shutdown();
+        openSSLSource.reset();
+    }
+
+    entropySource.reset();
     
     initialized = false;
     activeSourceType = "none";
@@ -282,12 +289,12 @@ unsigned int EntropyCollector::getBaudRate() const {
 
 bool EntropyCollector::initializeHardware(const std::string& port, unsigned int baudRate) {
     try {
-        auto source = std::make_shared<SerialEntropySource>(port, baudRate);
+        hardwareSource = std::make_shared<SerialEntropySource>(port, baudRate);
         
-        if (source->initialize()) {
-            entropySource = source;
+        if (hardwareSource->initialize()) {
+            entropySource = hardwareSource;
             activeSourceType = "hardware";
-            activeSourceName = source->getSourceName();
+            activeSourceName = hardwareSource->getSourceName();
             hardwareAvailable = true;
             return true;
         }
@@ -300,15 +307,16 @@ bool EntropyCollector::initializeHardware(const std::string& port, unsigned int 
 
 bool EntropyCollector::initializeOpenSSL() {
     try {
-        auto source = std::make_shared<OpenSSLEntropySource>();
-        
-        if (source->initialize()) {
-            entropySource = source;
-            activeSourceType = "openssl";
-            activeSourceName = source->getSourceName();
-            openSSLAvailable = true;
-            return true;
+        if (!openSSLSource) {
+            openSSLSource = std::make_shared<OpenSSLEntropySource>();
+            openSSLSource->initialize();
         }
+        
+        entropySource = openSSLSource;
+        activeSourceType = "openssl";
+        activeSourceName = openSSLSource->getSourceName();
+        openSSLAvailable = true;
+        return true;
     } catch (const std::exception& e) {
         { std::stringstream ss; ss << "[EntropyCollector] OpenSSL initialization error: " << e.what(); LOG_ERROR(ss.str()); }
     }
@@ -345,43 +353,54 @@ void EntropyCollector::cleanup() {
         entropyPool.reset();
     }
     
-    if (entropySource) {
-        entropySource->shutdown();
-        entropySource.reset();
+    if (hardwareSource) {
+        hardwareSource->shutdown();
+        hardwareSource.reset();
     }
+
+    if (openSSLSource) {
+        openSSLSource->shutdown();
+        openSSLSource.reset();
+    }
+
+    entropySource.reset();
 }
 
 void EntropyCollector::sourceMonitorLoop() {
     int failedCount = 0;
     int probeInterval = 0;
     while (monitorRunning) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
         if (!monitorRunning) break;
 
         if (activeSourceType == "hardware") {
             bool isAvail = false;
-            if (entropySource) {
-                isAvail = entropySource->isAvailable();
+            if (hardwareSource) {
+                isAvail = hardwareSource->isAvailable();
             }
 
             if (!isAvail) {
                 failedCount++;
-                if (failedCount >= 1) {
+                if (failedCount >= 2) {
                     failedCount = 0;
-                    { std::stringstream ss; ss << "[EntropyCollector] Hardware disconnected or paused. Falling back to OpenSSL..."; LOG_INFO(ss.str()); }
+                    { std::stringstream ss; ss << "[EntropyCollector] Hardware paused or disconnected. Falling back to OpenSSL..."; LOG_INFO(ss.str()); }
                     
-                    // Clean up hardware source so the COM port handle is cleanly released
-                    if (entropySource) {
+                    // If the cable was physically unplugged (port invalid), shut down the handle
+                    if (hardwareSource && !hardwareSource->isPortOpen()) {
                         try {
-                            entropySource->shutdown();
+                            hardwareSource->shutdown();
+                            hardwareSource.reset();
                         } catch (...) {}
+                    } else if (hardwareSource) {
+                        // Port is still open (device paused via button); flush stale bytes
+                        hardwareSource->flushBuffer();
                     }
 
                     hardwareAvailable = false;
 
                     if (initializeOpenSSL()) {
                         if (entropyPool) {
-                            entropyPool->setSource(entropySource);
+                            entropyPool->setSource(openSSLSource);
                         }
                         { std::stringstream ss; ss << "[EntropyCollector] Successfully switched to OpenSSL fallback"; LOG_INFO(ss.str()); }
                     }
@@ -391,26 +410,45 @@ void EntropyCollector::sourceMonitorLoop() {
             }
         } else if (activeSourceType == "openssl") {
             failedCount = 0;
-            probeInterval++;
-            // Check if hardware is back every 2 seconds (2 * 1000ms)
-            if (probeInterval >= 2) {
-                probeInterval = 0;
-                try {
-                    auto testSource = std::make_shared<SerialEntropySource>(port, baudRate, 1000);
-                    if (testSource->initialize() && testSource->isAvailable()) {
-                        { std::stringstream ss; ss << "[EntropyCollector] Hardware source resumed/reconnected! Switching back..."; LOG_INFO(ss.str()); }
-                        entropySource = testSource;
+            // Case 1: Hardware was paused via button (port is still open)
+            // Check if user pressed button to resume (new bytes arrived) without re-opening port or toggling DTR/RTS!
+            if (hardwareSource && hardwareSource->isPortOpen()) {
+                if (hardwareSource->hasIncomingData()) {
+                    if (hardwareSource->resumeFromPause()) {
+                        { std::stringstream ss; ss << "[EntropyCollector] Hardware source resumed! Switching back..."; LOG_INFO(ss.str()); }
+                        entropySource = hardwareSource;
                         activeSourceType = "hardware";
-                        activeSourceName = testSource->getSourceName();
+                        activeSourceName = hardwareSource->getSourceName();
                         hardwareAvailable = true;
                         if (entropyPool) {
-                            entropyPool->setSource(entropySource);
+                            entropyPool->setSource(hardwareSource);
                         }
-                    } else {
-                        testSource->shutdown();
                     }
-                } catch (const std::exception&) {
-                    // Still disconnected or paused, do nothing
+                }
+            } else {
+                // Case 2: Hardware was physically unplugged (no open port)
+                // Probe every 2 seconds (4 * 500ms) to check if USB is plugged back in
+                probeInterval++;
+                if (probeInterval >= 4) {
+                    probeInterval = 0;
+                    try {
+                        auto testSource = std::make_shared<SerialEntropySource>(port, baudRate, 1000);
+                        if (testSource->initialize() && testSource->isAvailable()) {
+                            { std::stringstream ss; ss << "[EntropyCollector] Hardware reconnected! Switching back..."; LOG_INFO(ss.str()); }
+                            hardwareSource = testSource;
+                            entropySource = hardwareSource;
+                            activeSourceType = "hardware";
+                            activeSourceName = testSource->getSourceName();
+                            hardwareAvailable = true;
+                            if (entropyPool) {
+                                entropyPool->setSource(hardwareSource);
+                            }
+                        } else {
+                            testSource->shutdown();
+                        }
+                    } catch (const std::exception&) {
+                        // Still disconnected
+                    }
                 }
             }
         }
