@@ -64,6 +64,14 @@ bool SerialEntropySource::initialize() {
         timeouts.ReadTotalTimeoutMultiplier = 10;
         timeouts.ReadTotalTimeoutConstant = timeoutMs > 0 ? timeoutMs : 500;
         SetCommTimeouts(handle, &timeouts);
+
+        // Disable DTR and RTS so opening the port does not toggle auto-reset on ESP32
+        DCB dcb;
+        if (GetCommState(handle, &dcb)) {
+            dcb.fDtrControl = DTR_CONTROL_DISABLE;
+            dcb.fRtsControl = RTS_CONTROL_DISABLE;
+            SetCommState(handle, &dcb);
+        }
 #endif
 
         // Flush any pending data
@@ -78,8 +86,7 @@ bool SerialEntropySource::initialize() {
             ).count());
             { std::stringstream ss; ss << "[SerialEntropySource] Connected to ESP32 on " << portName; LOG_INFO(ss.str()); }
         } else {
-            { std::stringstream ss; ss << "[SerialEntropySource] Warning: No response from ESP32 on " << portName; LOG_INFO(ss.str()); }
-            // Still mark as initialized but not available
+            // Background reconnect probes while device is paused/silent arrive here; avoid log spam
         }
         
         initialized = true;
@@ -124,19 +131,6 @@ bool SerialEntropySource::isAvailable() const {
         return false;
     }
 
-    // Check last byte received time first (lock-free)
-    // If the hardware hasn't provided a valid byte within 1 second, consider it unresponsive/paused
-    int64_t lastByteTime = lastByteReceivedTimeMs.load();
-    if (lastByteTime > 0) {
-        int64_t nowMs = std::chrono::duration_cast<std::chrono::milliseconds>(
-            std::chrono::steady_clock::now().time_since_epoch()
-        ).count();
-        if (nowMs - lastByteTime > 1000) {
-            available.store(false);
-            return false;
-        }
-    }
-
 #if PQT_HAS_BOOST_ASIO
     std::unique_lock<std::mutex> lock(mutex, std::try_to_lock);
     if (lock.owns_lock()) {
@@ -162,6 +156,17 @@ bool SerialEntropySource::isAvailable() const {
 #endif
     }
 #endif
+
+    int64_t lastRx = lastByteReceivedTimeMs.load();
+    if (lastRx > 0) {
+        int64_t now = std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::steady_clock::now().time_since_epoch()
+        ).count();
+        if (now - lastRx > 1200) {
+            available.store(false);
+            return false;
+        }
+    }
 
     return available.load();
 }

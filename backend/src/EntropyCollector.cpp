@@ -352,11 +352,11 @@ void EntropyCollector::cleanup() {
 }
 
 void EntropyCollector::sourceMonitorLoop() {
-    int loopCount = 0;
+    int failedCount = 0;
+    int probeInterval = 0;
     while (monitorRunning) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
         if (!monitorRunning) break;
-        loopCount++;
 
         if (activeSourceType == "hardware") {
             bool isAvail = false;
@@ -365,30 +365,38 @@ void EntropyCollector::sourceMonitorLoop() {
             }
 
             if (!isAvail) {
-                { std::stringstream ss; ss << "[EntropyCollector] Hardware silent or disconnected (>1s without data)! Falling back to OpenSSL..."; LOG_INFO(ss.str()); }
-                
-                // Clean up hardware source so the COM port handle is cleanly released
-                if (entropySource) {
-                    try {
-                        entropySource->shutdown();
-                    } catch (...) {}
-                }
-
-                hardwareAvailable = false;
-
-                if (initializeOpenSSL()) {
-                    if (entropyPool) {
-                        entropyPool->setSource(entropySource);
+                failedCount++;
+                if (failedCount >= 1) {
+                    failedCount = 0;
+                    { std::stringstream ss; ss << "[EntropyCollector] Hardware disconnected or paused. Falling back to OpenSSL..."; LOG_INFO(ss.str()); }
+                    
+                    // Clean up hardware source so the COM port handle is cleanly released
+                    if (entropySource) {
+                        try {
+                            entropySource->shutdown();
+                        } catch (...) {}
                     }
-                    { std::stringstream ss; ss << "[EntropyCollector] Successfully switched to OpenSSL fallback"; LOG_INFO(ss.str()); }
+
+                    hardwareAvailable = false;
+
+                    if (initializeOpenSSL()) {
+                        if (entropyPool) {
+                            entropyPool->setSource(entropySource);
+                        }
+                        { std::stringstream ss; ss << "[EntropyCollector] Successfully switched to OpenSSL fallback"; LOG_INFO(ss.str()); }
+                    }
                 }
+            } else {
+                failedCount = 0;
             }
         } else if (activeSourceType == "openssl") {
-            // Check if hardware is back every 1 second (10 * 100ms)
-            if (loopCount >= 10) {
-                loopCount = 0;
+            failedCount = 0;
+            probeInterval++;
+            // Check if hardware is back every 2 seconds (2 * 1000ms)
+            if (probeInterval >= 2) {
+                probeInterval = 0;
                 try {
-                    auto testSource = std::make_shared<SerialEntropySource>(port, baudRate, 500);
+                    auto testSource = std::make_shared<SerialEntropySource>(port, baudRate, 1000);
                     if (testSource->initialize() && testSource->isAvailable()) {
                         { std::stringstream ss; ss << "[EntropyCollector] Hardware source resumed/reconnected! Switching back..."; LOG_INFO(ss.str()); }
                         entropySource = testSource;

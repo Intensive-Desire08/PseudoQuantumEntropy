@@ -40,6 +40,7 @@ int getByte() {
 }
 
 void setup() {
+  Serial.setTxBufferSize(512);
   Serial.begin(921600);
 
   pinMode(greenLED, OUTPUT);
