@@ -303,6 +303,7 @@ PseudoQuantumEntropy/
 │   ├── [✅] build.sh                      # CMake build script
 │   ├── [✅] run.sh                        # Run script for Linux/macOS
 │   └── [✅] run.bat                       # Run script for Windows
+├── scratch/                               # Temporary workspace files (build logs, scratchpads, ignored by git)
 ├── [📋] docs/                             # NOT CREATED — planned (ARCHITECTURE.md, API.md, etc.)
 └── [📋] frontend/assets/                  # NOT CREATED — planned
 ```
@@ -405,6 +406,7 @@ If the ESP32 fails to communicate, reports frequent desyncs/timeouts, or drops b
 
 | Date | Change | Details |
 |---|---|---|
+| 2026-09-21 | Git Ignore Cleanup & Scratch Directory Usage | Updated `.gitignore` to ignore `.cache/`, `.playwright-mcp/`, Playwright test caches/reports, and `scratch/` folder. Retained `Temp.txt` for notes. Untracked and deleted cached playwright logs and build errors from git index; moved `build_error.txt` into `scratch/`. Documented `scratch/` usage for temporary agent/build outputs. |
 | 2026-09-21 | 921600 Baud & 64B Chunk Protocol | Upgraded serial baud rate to 921,600 and switched firmware to 2-bit ADC extraction. Implemented 66-byte chunked framing `[0xAA][0x55][64B payload]` with sliding auto-resynchronization. Added baud rate troubleshooting guide to CONTEXT.md. |
 | 2026-09-21 | High-Throughput Buffered Serial & Non-Blocking Pool | Added 2KB internal `rxBuffer` to `SerialEntropySource` to batch OS serial reads (eliminating 99% of async Boost/Windows syscall overhead). Decoupled `EntropyPool::collectEntropy()` from the pool mutex so consumers are never blocked while the background thread fetches entropy. Audited hardware throughput and Gateway continuous encryption threshold. |
 | 2026-09-21 | Backend LFSR Whitening Offload | Moved 32-bit Galois LFSR whitening from ESP32 firmware (`PQHardware.ino`) to backend (`SerialEntropySource`). ESP32 now streams raw sampled bytes directly over serial without MCU-side bit-level LFSR computation or artificial delays, boosting sampling speed. |

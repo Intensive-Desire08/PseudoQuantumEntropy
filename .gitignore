@@ -23,11 +23,13 @@ build_config.h
 .DS_Store
 Thumbs.db
 
-# Temporary files
+# Temporary and scratch files
 *.tmp
 *.log
 *.bak
 *.pid
+scratch/
+Temp.txt
 
 # Compiler outputs
 *.o
@@ -45,6 +47,9 @@ __pycache__/
 # Local config (if any)
 config/local_*.json
 
+# Cache directories
+.cache/
+
 # Playwright
 node_modules/
 /test-results/
@@ -52,4 +57,6 @@ node_modules/
 /blob-report/
 /playwright/.cache/
 /playwright/.auth/
+/.playwright-mcp/
 /screenshots/
+

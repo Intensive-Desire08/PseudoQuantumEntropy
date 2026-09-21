@@ -432,15 +432,16 @@
                   type="number"
                   min="64"
                   step="64"
-                  value="1024"
+                  value="4096"
                 />
               </div>
 
               <div class="form-group">
                 <label for="entropy-mode" class="form-label">Analysis Mode</label>
                 <select id="entropy-mode" class="form-select">
-                  <option value="quick" selected>Quick (Core NIST STS Tests)</option>
+                  <option value="quick">Quick (Core NIST STS Tests)</option>
                   <option value="full">Full (Comprehensive NIST SP 800-22)</option>
+                  <option value="exhaustive" selected>Exhaustive (NIST SP 800-22 Multi-Run &amp; P-Value Uniformity)</option>
                 </select>
               </div>
 
@@ -543,6 +544,72 @@
               <span class="chart-badge" id="chart-verdict-badge">Awaiting test</span>
             </div>
             <svg class="chart" id="chart-pvalues" viewBox="0 0 540 220" role="img"></svg>
+          </div>
+        </div>
+
+        <!-- Exhaustive NIST SP 800-22 Multi-Run & Uniformity Panel -->
+        <div id="exhaustive-panel" class="panel-card d-none" style="margin-bottom: 1.5rem;">
+          <div class="panel-card-head" style="margin: 0 0 1rem 0; padding-bottom: 0.75rem; border-bottom: 1px solid var(--border-subtle); display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <span class="pipeline-index" style="color:var(--accent); font-weight: 700;">NIST SP 800-22 EXHAUSTIVE METHODOLOGY</span>
+              <h2 style="font-size: 1.25rem; margin: 0.25rem 0 0.1rem 0;">100-Sample Confidence Interval &amp; P-Value Uniformity</h2>
+              <p style="margin: 0; font-size: 0.82rem; color: var(--muted);">
+                Validates empirical pass proportions against the 3&sigma; confidence interval (&ge; 96.0%) and tests P-value distribution uniformity across 10 intervals [0.0..1.0] using &chi;&sup2; and Kolmogorov-Smirnov.
+              </p>
+            </div>
+            <span class="test-badge pass" id="exhaustive-verdict-badge">PASSED</span>
+          </div>
+
+          <!-- Summary Metric Cards -->
+          <div class="metric-grid compact" style="margin-bottom: 1.2rem;">
+            <div class="metric-card">
+              <span class="metric-label">Pass Proportion</span>
+              <strong id="ex-stat-pass-rate">&mdash;</strong>
+            </div>
+            <div class="metric-card">
+              <span class="metric-label">3&sigma; NIST Threshold</span>
+              <strong id="ex-stat-threshold">&ge; 96.0%</strong>
+            </div>
+            <div class="metric-card">
+              <span class="metric-label">Uniformity &chi;&sup2; P</span>
+              <strong id="ex-stat-uniformity-p">&mdash;</strong>
+            </div>
+            <div class="metric-card">
+              <span class="metric-label">Distribution Diagnosis</span>
+              <strong id="ex-stat-diagnosis" style="font-size: 0.85rem; color: var(--success);">&mdash;</strong>
+            </div>
+          </div>
+
+          <!-- 10-Bin Histogram Chart -->
+          <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 1rem; margin-bottom: 1.2rem;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem;">
+              <div>
+                <strong style="font-size: 0.95rem;">P-Value 10-Bin Histogram [0.0 &ndash; 1.0]</strong>
+                <p style="margin:0; font-size:0.78rem; color:var(--muted);">Ideal random generator yields flat ~10% frequency across all 10 subintervals (Dashed line = Expected 10%).</p>
+              </div>
+              <span id="ex-histogram-count-badge" class="chart-badge">500 P-Values</span>
+            </div>
+            <svg class="chart" id="chart-pvalue-histogram" viewBox="0 0 540 200" role="img" style="height: 200px; width: 100%;"></svg>
+          </div>
+
+          <!-- Per-Test Exhaustive Breakdown Table -->
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>NIST Test</th>
+                  <th>Passes (N=100)</th>
+                  <th>Pass Rate</th>
+                  <th>Uniformity &chi;&sup2; P</th>
+                  <th>KS P-Value</th>
+                  <th>Diagnosis</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="exhaustive-tests-table">
+                <!-- Populated dynamically by test.js -->
+              </tbody>
+            </table>
           </div>
         </div>
 

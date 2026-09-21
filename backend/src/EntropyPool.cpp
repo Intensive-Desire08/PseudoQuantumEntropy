@@ -87,22 +87,34 @@ std::vector<uint8_t> EntropyPool::getEntropy(size_t numBytes) {
         return {};
     }
     
-    std::unique_lock<std::mutex> lock(mutex);
-    
-    // Wait until we have enough bytes or pool is stopped
-    while (count < numBytes && !stopped && running) {
-        cv.wait(lock);
+    std::vector<uint8_t> result;
+    result.reserve(numBytes);
+
+    while (result.size() < numBytes) {
+        std::unique_lock<std::mutex> lock(mutex);
+        
+        while (count == 0 && !stopped && running) {
+            cv.wait(lock);
+        }
+        
+        if (stopped || !running) {
+            if (result.empty()) {
+                throw EntropyException("EntropyPool is stopped");
+            }
+            break;
+        }
+        
+        size_t needed = numBytes - result.size();
+        size_t toRead = std::min(needed, count);
+        auto chunk = readBytes(toRead);
+        result.insert(result.end(), chunk.begin(), chunk.end());
+
+        if (needsRefill()) {
+            refillCV.notify_one();
+        }
     }
     
-    if (stopped || !running) {
-        throw EntropyException("EntropyPool is stopped");
-    }
-    
-    if (count < numBytes) {
-        throw EntropyException("EntropyPool: Insufficient entropy available");
-    }
-    
-    return readBytes(numBytes);
+    return result;
 }
 
 uint8_t EntropyPool::getByte() {

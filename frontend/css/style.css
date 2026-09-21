@@ -206,7 +206,8 @@ textarea {
   display: block;
 }
 
-.page-section.d-none {
+.page-section.d-none,
+.d-none {
   display: none !important;
 }
 

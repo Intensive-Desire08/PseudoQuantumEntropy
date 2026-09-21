@@ -64,6 +64,7 @@ test.describe('PseudoQuantum Modern UI & Feature Flow', () => {
 
     // Run quick test with 256 bytes
     await page.fill('#entropy-bytes', '256');
+    await page.selectOption('#entropy-mode', 'quick');
     await page.click('button:has-text("Run test")');
 
     // Wait for completion status (Python NIST execution may take up to 25s)

@@ -96,8 +96,8 @@ window.PQEApi = {
 
   async testEntropy(payload = {}) {
     const requestBody = {
-      bytes: payload.bytes || 1024,
-      mode: payload.mode || 'quick'
+      bytes: payload.bytes || 4096,
+      mode: payload.mode || 'exhaustive'
     };
 
     return this.request('/test', {

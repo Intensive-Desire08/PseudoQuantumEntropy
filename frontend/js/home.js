@@ -1,4 +1,18 @@
 window.PQEPage = window.PQEPage || {};
+window.PQEPollController = window.PQEPollController || {
+  _paused: false,
+  pause() {
+    this._paused = true;
+    console.log('[PQE] Background status polling paused for active test.');
+  },
+  resume() {
+    this._paused = false;
+    console.log('[PQE] Background status polling resumed.');
+  },
+  isPaused() {
+    return this._paused;
+  }
+};
 
 (function () {
   let statusInterval = null;
@@ -122,6 +136,9 @@ window.PQEPage = window.PQEPage || {};
 
     // Status polling routine
     const updateStatus = async () => {
+      if (window.PQEPollController && window.PQEPollController.isPaused()) {
+        return;
+      }
       try {
         const result = await window.PQEApi.getStatus();
         const entropy = result?.entropy || {};

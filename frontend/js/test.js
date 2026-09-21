@@ -215,6 +215,160 @@ window.PQEPage = window.PQEPage || {};
     }).join('');
   }
 
+  function drawPValueHistogramChart(svg, bins, expected) {
+    if (!svg) return;
+    if (!Array.isArray(bins) || bins.length === 0) {
+      bins = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    }
+    const width = 540;
+    const height = 200;
+    const pad = { left: 45, right: 25, top: 25, bottom: 40 };
+
+    const chartW = width - pad.left - pad.right;
+    const chartH = height - pad.top - pad.bottom;
+
+    const maxVal = Math.max(...bins, (expected || 10) * 1.5, 10);
+    const expY = pad.top + chartH - (chartH * ((expected || 10) / maxVal));
+
+    const slotW = chartW / bins.length;
+    const barW = Math.min(slotW * 0.75, 36);
+
+    let barsMarkup = '';
+    bins.forEach((count, i) => {
+      const barH = Math.max(3, chartH * (count / maxVal));
+      const x = pad.left + i * slotW + (slotW - barW) / 2;
+      const y = pad.top + chartH - barH;
+
+      const diffRatio = expected > 0 ? Math.abs(count - expected) / expected : 0;
+      let barColor = '#00e5ff';
+      if (diffRatio > 0.6) {
+        barColor = '#ff5252';
+      } else if (diffRatio > 0.35) {
+        barColor = '#ffd600';
+      }
+
+      const binRange = `${(i * 0.1).toFixed(1)}-${((i + 1) * 0.1).toFixed(1)}`;
+
+      barsMarkup += `
+        <rect x="${x}" y="${y}" width="${barW}" height="${barH}" fill="${barColor}" fill-opacity="0.8" rx="2" stroke="${barColor}" stroke-width="1">
+          <title>Bin [${binRange}]: ${count} p-values</title>
+        </rect>
+        <text class="chart-axis-label" x="${x + barW / 2}" y="${Math.max(pad.top + 10, y - 4)}" text-anchor="middle" fill="${barColor}" font-weight="700" font-size="10px">
+          ${count}
+        </text>
+        <text class="chart-axis-label" x="${x + barW / 2}" y="${pad.top + chartH + 18}" text-anchor="middle" font-size="9px">
+          .${i}
+        </text>
+      `;
+    });
+
+    svg.innerHTML = `
+      <!-- Grid lines -->
+      <g class="chart-gridlines">
+        <line x1="${pad.left}" y1="${pad.top}" x2="${width - pad.right}" y2="${pad.top}"/>
+        <text x="${pad.left - 8}" y="${pad.top + 4}" text-anchor="end">${Math.round(maxVal)}</text>
+
+        <line x1="${pad.left}" y1="${pad.top + chartH * 0.5}" x2="${width - pad.right}" y2="${pad.top + chartH * 0.5}"/>
+        <text x="${pad.left - 8}" y="${pad.top + chartH * 0.5 + 4}" text-anchor="end">${Math.round(maxVal / 2)}</text>
+
+        <line x1="${pad.left}" y1="${pad.top + chartH}" x2="${width - pad.right}" y2="${pad.top + chartH}"/>
+        <text x="${pad.left - 8}" y="${pad.top + chartH + 4}" text-anchor="end">0</text>
+      </g>
+
+      <!-- Expected uniform line -->
+      <line x1="${pad.left}" y1="${expY}" x2="${width - pad.right}" y2="${expY}"
+            stroke="rgba(0, 230, 118, 0.7)" stroke-dasharray="4 3" stroke-width="1.5"/>
+      <text x="${width - pad.right}" y="${expY - 4}" text-anchor="end" fill="#00e676" font-size="9px" font-family="monospace">
+        Expected (~${Math.round(expected || 0)})
+      </text>
+
+      <!-- Axes -->
+      <line class="chart-axis" x1="${pad.left}" y1="${pad.top + chartH}" x2="${width - pad.right}" y2="${pad.top + chartH}"/>
+      <line class="chart-axis" x1="${pad.left}" y1="${pad.top}" x2="${pad.left}" y2="${pad.top + chartH}"/>
+
+      ${barsMarkup}
+    `;
+  }
+
+  function updateExhaustivePanel(exhaustiveData) {
+    const exPanel = document.getElementById('exhaustive-panel');
+    if (!exPanel) return;
+
+    if (!exhaustiveData) {
+      exPanel.classList.add('d-none');
+      return;
+    }
+
+    exPanel.classList.remove('d-none');
+
+    const passRateEl = document.getElementById('ex-stat-pass-rate');
+    if (passRateEl) {
+      passRateEl.textContent = `${exhaustiveData.overall_pass_rate_percent}% (${exhaustiveData.runs} runs)`;
+    }
+
+    const thresholdEl = document.getElementById('ex-stat-threshold');
+    if (thresholdEl) {
+      thresholdEl.textContent = `≥ ${exhaustiveData.min_pass_threshold_percent}% (${exhaustiveData.min_passes_required}/${exhaustiveData.runs})`;
+    }
+
+    const unifPEl = document.getElementById('ex-stat-uniformity-p');
+    if (unifPEl) {
+      const p = exhaustiveData.overall_uniformity_p_value;
+      unifPEl.textContent = typeof p === 'number' ? p.toFixed(4) : '—';
+    }
+
+    const diagEl = document.getElementById('ex-stat-diagnosis');
+    if (diagEl) {
+      diagEl.textContent = exhaustiveData.overall_passed ? 'Uniform (Ideal Random)' : 'Non-Uniform Anomalies Detected';
+      diagEl.style.color = exhaustiveData.overall_passed ? 'var(--success)' : 'var(--danger)';
+    }
+
+    const verdictBadge = document.getElementById('exhaustive-verdict-badge');
+    if (verdictBadge) {
+      verdictBadge.className = exhaustiveData.overall_passed ? 'test-badge pass' : 'test-badge fail';
+      verdictBadge.textContent = exhaustiveData.overall_passed ? 'PASSED (NIST SP 800-22)' : 'REJECTED';
+    }
+
+    const histBadge = document.getElementById('ex-histogram-count-badge');
+    if (histBadge) {
+      histBadge.textContent = `${(exhaustiveData.runs || 100) * 5} Total P-Values`;
+    }
+
+    // Draw 10-bin histogram
+    const histSvg = document.getElementById('chart-pvalue-histogram');
+    if (histSvg && exhaustiveData.overall_histogram_bins_10) {
+      drawPValueHistogramChart(histSvg, exhaustiveData.overall_histogram_bins_10, exhaustiveData.overall_expected_per_bin);
+    }
+
+    // Populate per-test table
+    const exTable = document.getElementById('exhaustive-tests-table');
+    if (exTable && exhaustiveData.tests) {
+      const testNameMap = {
+        monobit: '01. Monobit Frequency',
+        block_frequency: '02. Block Frequency',
+        runs: '03. Runs Test',
+        longest_run: '04. Longest Run of Ones',
+        byte_distribution: '05. Chi-Square Byte Distribution'
+      };
+
+      exTable.innerHTML = Object.entries(exhaustiveData.tests).map(([tKey, tData]) => {
+        const tPassed = tData.passed !== undefined ? tData.passed : (tData.pass_rate_percent >= exhaustiveData.min_pass_threshold_percent);
+        const badgeCls = tPassed ? 'test-badge pass' : 'test-badge fail';
+        return `
+          <tr>
+            <td><strong>${testNameMap[tKey] || tKey}</strong></td>
+            <td>${tData.passes} / ${exhaustiveData.runs}</td>
+            <td><code>${tData.pass_rate_percent.toFixed(1)}%</code></td>
+            <td><code>${typeof tData.uniformity_p_value === 'number' ? tData.uniformity_p_value.toFixed(4) : '—'}</code></td>
+            <td><code>${typeof tData.ks_p_value === 'number' ? tData.ks_p_value.toFixed(4) : '—'}</code></td>
+            <td style="font-size: 0.82rem; color: ${tPassed ? 'var(--success)' : 'var(--danger)'};">${tData.diagnosis || '—'}</td>
+            <td><span class="${badgeCls}">${tPassed ? 'PASSED' : 'REJECT'}</span></td>
+          </tr>
+        `;
+      }).join('');
+    }
+  }
+
   window.PQEPage.test = async function () {
     const form = document.getElementById('entropy-test-form');
     if (!form) return;
@@ -242,12 +396,22 @@ window.PQEPage = window.PQEPage || {};
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
 
-      const bytes = Number(bytesInput.value) || 1024;
-      const mode = modeSelect.value || 'quick';
+      const bytes = Number(bytesInput.value) || 4096;
+      const mode = modeSelect.value || 'exhaustive';
       const submitButton = form.querySelector('button[type="submit"]');
 
+      // Stop dashboard & background polling while test is running
+      if (window.PQEPollController) {
+        window.PQEPollController.pause();
+      }
+
       submitButton.disabled = true;
-      setStatus(`Executing Python NIST SP 800-22 (${mode} mode) on ${bytes} entropy bytes...`, '');
+      setStatus(
+        mode === 'exhaustive'
+          ? `Executing Exhaustive NIST SP 800-22 (100 independent samples × ${bytes} bytes) with Uniformity Testing. Dashboard updates paused...`
+          : `Executing Python NIST SP 800-22 (${mode} mode) on ${bytes} entropy bytes. Dashboard updates paused...`,
+        ''
+      );
 
       try {
         const result = await window.PQEApi.testEntropy({ bytes, mode });
@@ -314,7 +478,6 @@ window.PQEPage = window.PQEPage || {};
         if (tests.monobit && tests.monobit.parameters && tests.monobit.parameters.s_obs !== undefined && tests.monobit.parameters.n_bits) {
           const sObs = tests.monobit.parameters.s_obs;
           const nBits = tests.monobit.parameters.n_bits;
-          // sObs = (ones - zeros) => ones = (nBits + sObs)/2
           const ones = (nBits + sObs) / 2;
           oneRatio = Math.max(0, Math.min(1, ones / nBits));
           zeroRatio = 1 - oneRatio;
@@ -334,6 +497,9 @@ window.PQEPage = window.PQEPage || {};
           verdictBadge.style.color = overallPassed ? 'var(--success)' : 'var(--danger)';
         }
 
+        // Handle exhaustive panel
+        updateExhaustivePanel(result.exhaustive || null);
+
         // Add to history
         sessionHistory.push({
           id: sessionHistory.length + 1,
@@ -348,14 +514,24 @@ window.PQEPage = window.PQEPage || {};
         });
 
         updateHistoryTable();
-        setStatus(`Analysis complete: ${overallPassed ? 'ALL TESTS PASSED' : 'COMPLETED'} (${mode} mode).`, overallPassed ? 'success' : 'warning');
+        setStatus(
+          mode === 'exhaustive'
+            ? `Exhaustive analysis complete: ${result.overall_pass_rate_percent}% pass rate across 100 runs (${overallPassed ? 'PASSED CONFIDENCE INTERVAL' : 'REJECTED'}).`
+            : `Analysis complete: ${overallPassed ? 'ALL TESTS PASSED' : 'COMPLETED'} (${mode} mode).`,
+          overallPassed ? 'success' : 'warning'
+        );
 
       } catch (error) {
         output.value = '';
         setStatus(`Entropy test execution error: ${error.message}`, 'danger');
       } finally {
+        // Resume background polling after test finishes
+        if (window.PQEPollController) {
+          window.PQEPollController.resume();
+        }
         submitButton.disabled = false;
       }
     });
   };
 })();
+

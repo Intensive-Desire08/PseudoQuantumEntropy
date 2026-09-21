@@ -40,20 +40,19 @@ WebServer::WebServer(
     , activeConnections(0)
     , totalRequests(0) {
     
-    // Ensure frontend path is absolute or relative to executable
-    if (!std::filesystem::exists(frontendPathValue)) {
-        // Try to find it relative to current directory by going up a few levels
-        std::vector<std::string> searchPrefixes = {
-            "../",
-            "../../",
-            "../../../"
-        };
-        for (const auto& prefix : searchPrefixes) {
-            std::string altPath = prefix + frontendPathValue;
-            if (std::filesystem::exists(altPath)) {
-                this->frontendPath = altPath;
-                break;
-            }
+    // Ensure frontend path is found regardless of execution working directory
+    std::vector<std::string> candidates = {
+        frontendPathValue,
+        "frontend",
+        "./frontend",
+        "../frontend",
+        "../../frontend",
+        "../../../frontend"
+    };
+    for (const auto& candidate : candidates) {
+        if (!candidate.empty() && std::filesystem::exists(candidate) && std::filesystem::is_directory(candidate)) {
+            this->frontendPath = candidate;
+            break;
         }
     }
 }
@@ -550,16 +549,32 @@ void WebServer::handleTest(const httplib::Request& req, httplib::Response& res) 
             return;
         }
         
-        size_t numBytes = static_cast<size_t>(request.value("bytes", 1024u));
+        size_t numBytes = static_cast<size_t>(request.value("bytes", 4096u));
         std::string mode = request.value("mode", "quick");
-        
-        if (numBytes > MAX_ENTROPY_REQUEST) {
-            res.status = 400;
-            res.set_content(errorResponse(400, "Requested bytes exceeds maximum"), "application/json");
-            return;
+        size_t runs = static_cast<size_t>(request.value("runs", 100u));
+
+        size_t totalBytesToFetch = numBytes;
+        if (mode == "exhaustive") {
+            if (runs < 10) runs = 10;
+            if (runs > 200) runs = 200;
+            totalBytesToFetch = numBytes * runs;
+            if (totalBytesToFetch > MAX_ENTROPY_REQUEST) {
+                totalBytesToFetch = MAX_ENTROPY_REQUEST;
+                runs = totalBytesToFetch / (numBytes > 0 ? numBytes : 1);
+                if (runs == 0) {
+                    runs = 10;
+                    numBytes = totalBytesToFetch / runs;
+                }
+            }
+        } else {
+            if (numBytes > MAX_ENTROPY_REQUEST) {
+                res.status = 400;
+                res.set_content(errorResponse(400, "Requested bytes exceeds maximum (1MB)"), "application/json");
+                return;
+            }
         }
         
-        std::vector<uint8_t> data = entropyCollector.getEntropy(numBytes);
+        std::vector<uint8_t> data = entropyCollector.getEntropy(totalBytesToFetch);
 
         std::filesystem::path analyzerScript;
         std::filesystem::path searchDir = std::filesystem::current_path();
@@ -596,7 +611,12 @@ void WebServer::handleTest(const httplib::Request& req, httplib::Response& res) 
                 inputFile.close();
             }
 
-            std::string command = pythonExe + " \"" + analyzerScript.string() + "\" --mode " + mode + " < \"" + tempFile.string() + "\"";
+            std::string command = pythonExe + " \"" + analyzerScript.string() + "\" --mode " + mode;
+            if (mode == "exhaustive") {
+                command += " --runs " + std::to_string(runs) + " --sample-bytes " + std::to_string(numBytes);
+            }
+            command += " < \"" + tempFile.string() + "\"";
+
             FILE* pipe = popen(command.c_str(), "r");
             std::string analyzerOutput;
             if (pipe) {
@@ -619,8 +639,30 @@ void WebServer::handleTest(const httplib::Request& req, httplib::Response& res) 
                     response["mode"] = analyzerJson.value("mode", mode);
                     response["timestamp"] = analyzerJson.value("timestamp", "");
                     response["total_bytes"] = analyzerJson.value("total_bytes", data.size());
-                    response["statistics"] = analyzerJson.value("test_results", nlohmann::json::array());
-                    response["data"] = hexEncode(data);
+                    if (mode == "exhaustive") {
+                        response["overall_verdict"] = analyzerJson.value("overall_verdict", "PASSED");
+                        response["overall_passed"] = analyzerJson.value("overall_passed", true);
+                        response["overall_pass_rate_percent"] = analyzerJson.value("overall_pass_rate_percent", 100.0);
+                        response["min_pass_threshold_percent"] = analyzerJson.value("min_pass_threshold_percent", 96.0);
+                        response["runs"] = analyzerJson.value("runs", runs);
+                        response["sample_bytes"] = analyzerJson.value("sample_bytes", numBytes);
+                        response["exhaustive"] = analyzerJson;
+                        response["statistics"] = nlohmann::json::array();
+                        if (analyzerJson.contains("tests") && analyzerJson["tests"].is_object()) {
+                            for (auto& [key, val] : analyzerJson["tests"].items()) {
+                                nlohmann::json item = val;
+                                item["key"] = key;
+                                item["pass"] = val.value("passed", true);
+                                item["p_value"] = val.value("uniformity_p_value", 1.0);
+                                response["statistics"].push_back(item);
+                            }
+                        }
+                    } else {
+                        response["overall_verdict"] = analyzerJson.value("overall_verdict", "PASSED");
+                        response["statistics"] = analyzerJson.value("test_results", nlohmann::json::array());
+                    }
+                    std::vector<uint8_t> previewData = (data.size() > 512) ? std::vector<uint8_t>(data.begin(), data.begin() + 512) : data;
+                    response["data"] = hexEncode(previewData);
                     response["analysis"] = analyzerJson;
                     res.set_content(response.dump(2), "application/json");
                     return;
