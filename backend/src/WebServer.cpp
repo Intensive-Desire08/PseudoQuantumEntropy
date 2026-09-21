@@ -596,7 +596,7 @@ void WebServer::handleTest(const httplib::Request& req, httplib::Response& res) 
                 inputFile.close();
             }
 
-            std::string command = "\"\"" + pythonExe + "\" \"" + analyzerScript.string() + "\" --mode " + mode + " < \"" + tempFile.string() + "\"\"";
+            std::string command = pythonExe + " \"" + analyzerScript.string() + "\" --mode " + mode + " < \"" + tempFile.string() + "\"";
             FILE* pipe = popen(command.c_str(), "r");
             std::string analyzerOutput;
             if (pipe) {

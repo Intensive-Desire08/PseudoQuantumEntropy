@@ -1,5 +1,7 @@
 window.PQEApi = {
-  API_BASE_URL: 'http://localhost:8080',
+  API_BASE_URL: (typeof window !== 'undefined' && window.location && window.location.origin && window.location.origin.startsWith('http'))
+    ? window.location.origin
+    : 'http://localhost:8080',
 
   async request(path, options = {}) {
     const method = (options.method || 'GET').toUpperCase();
@@ -65,6 +67,10 @@ window.PQEApi = {
     return this.request('/status');
   },
 
+  async getHealth() {
+    return this.request('/health');
+  },
+
   async getEntropy(bytes = 32) {
     return this.request(`/entropy?bytes=${encodeURIComponent(bytes)}`);
   },
@@ -115,44 +121,26 @@ window.PQEApi = {
     return this.settings(payload);
   },
 
-  async encrypt(formData) {
+  async reseed() {
+    return this.request('/reseed', {
+      method: 'POST',
+      body: JSON.stringify({})
+    });
+  },
+
+  async encrypt(formDataOrPayload) {
+    const isFormData = formDataOrPayload instanceof FormData;
     return this.request('/encrypt', {
       method: 'POST',
-      body: formData,
-      responseType: 'blob'
+      body: isFormData ? formDataOrPayload : JSON.stringify(formDataOrPayload)
     });
   },
 
-  async decrypt(formData) {
+  async decrypt(formDataOrPayload) {
+    const isFormData = formDataOrPayload instanceof FormData;
     return this.request('/decrypt', {
       method: 'POST',
-      body: formData,
-      responseType: 'blob'
+      body: isFormData ? formDataOrPayload : JSON.stringify(formDataOrPayload)
     });
-  },
-
-  async encryptFile(file, key, iv = null) {
-    const formData = new FormData();
-    formData.append('file', file);
-
-    if (key) {
-      formData.append('key', key);
-    }
-
-    if (iv) {
-      formData.append('iv', iv);
-    }
-
-    return this.encrypt(formData);
-  },
-
-  async decryptFile(file, key, iv, tag) {
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('key', key);
-    formData.append('iv', iv);
-    formData.append('tag', tag);
-
-    return this.decrypt(formData);
   }
 };

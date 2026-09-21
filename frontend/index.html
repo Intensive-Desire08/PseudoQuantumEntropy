@@ -3,200 +3,737 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="PseudoQuantum Entropy Service - Dual-photodiode shot noise hardware entropy engine with Von Neumann whitening, NIST STS analysis, and AES-256-GCM cryptography."
+    />
     <title>PseudoQuantum Entropy Service</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
       rel="stylesheet"
-      integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH"
-      crossorigin="anonymous"
     />
     <link rel="stylesheet" href="css/style.css" />
   </head>
   <body data-page="home">
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm">
-      <div class="container-fluid">
-        <a class="navbar-brand" href="#home">PseudoQuantum Entropy</a>
-        <button
-          class="navbar-toggler"
-          type="button"
-          data-bs-toggle="collapse"
-          data-bs-target="#mainNav"
-          aria-controls="mainNav"
-          aria-expanded="false"
-          aria-label="Toggle navigation"
-        >
-          <span class="navbar-toggler-icon"></span>
+    <div class="background-grid"></div>
+    <div class="background-glow glow-one"></div>
+    <div class="background-glow glow-two"></div>
+
+    <header class="site-header">
+      <nav class="nav container" aria-label="Primary navigation">
+        <a class="brand" href="#home" aria-label="PseudoQuantum Entropy Home">
+          <span class="brand-mark">PQ</span>
+          <span>PseudoQuantum</span>
+        </a>
+
+        <button class="nav-toggle" aria-expanded="false" aria-controls="nav-menu" aria-label="Toggle navigation">
+          <span></span><span></span><span></span>
         </button>
 
-        <div class="collapse navbar-collapse" id="mainNav">
-          <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-            <li class="nav-item">
-              <a class="nav-link active" href="#home">Home</a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" href="#encryption">Encryption</a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" href="#keygen">Key Generation</a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" href="#settings">Settings</a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" href="#test">Entropy Test</a>
-            </li>
-          </ul>
+        <div class="nav-menu" id="nav-menu">
+          <a class="nav-link active" href="#home">Live Entropy &amp; Status</a>
+          <a class="nav-link" href="#encryption">Encryption Studio</a>
+          <a class="nav-link" href="#keygen">Key Derivation</a>
+          <a class="nav-link" href="#test">NIST Analysis</a>
+          <a class="nav-link" href="#settings">Settings</a>
+          <a class="nav-link" href="#about">How It Works</a>
         </div>
-      </div>
-    </nav>
+      </nav>
+    </header>
 
-    <main class="container py-4">
+    <main class="page-shell container">
+      <!-- ========================================== -->
+      <!-- SECTION 1: HOME / LIVE GENERATOR & STATUS   -->
+      <!-- ========================================== -->
       <section id="home" class="page-section active">
-        <div class="d-flex justify-content-between align-items-center mb-3">
+        <div class="page-heading">
+          <span class="section-tag">01 / LIVE GENERATOR &amp; TELEMETRY</span>
           <h1>System Status</h1>
-          <button id="refresh-status" class="btn btn-primary btn-sm" type="button">Refresh</button>
+          <p>
+            Real-time telemetry and hardware-backed entropy generation powered by dual-photodiode
+            quantum shot noise, differential ADC sampling, and Von Neumann debiasing.
+          </p>
         </div>
 
-        <div id="status-output" class="row g-3">
-          <div class="col-12">
-            <div class="alert alert-light border">Loading status...</div>
+        <!-- Telemetry Status Grid -->
+        <div id="status-output" class="metric-grid cols-5">
+          <div class="metric-card">
+            <span class="metric-label">System State</span>
+            <div class="metric-value highlight-cyan" id="metric-status">Ready</div>
           </div>
+          <div class="metric-card">
+            <span class="metric-label">Hardware Sensor</span>
+            <div class="metric-value" id="metric-hardware">Detecting...</div>
+          </div>
+          <div class="metric-card">
+            <span class="metric-label">Active Source</span>
+            <div class="metric-value highlight-green" id="metric-source">Checking...</div>
+          </div>
+          <div class="metric-card">
+            <span class="metric-label">Pool Buffer</span>
+            <div class="metric-value" id="metric-pool">0 bytes</div>
+          </div>
+          <div class="metric-card">
+            <span class="metric-label">Collection Speed</span>
+            <div class="metric-value" id="metric-speed">Calculating...</div>
+          </div>
+        </div>
+
+        <div class="generator-layout">
+          <!-- Generator Main Area -->
+          <div class="generator-main">
+            <!-- 6-Stage Hardware Pipeline Trace -->
+            <div class="processing-panel" aria-live="polite">
+              <div class="processing-heading">
+                <div>
+                  <span class="section-tag" style="margin:0;">Hardware Entropy Pipeline</span>
+                  <strong data-pipeline-status>Awaiting generation request</strong>
+                </div>
+                <span class="processing-counter" data-pipeline-counter>0 / 6</span>
+              </div>
+
+              <div class="pipeline-track">
+                <article class="pipeline-step" data-pipeline-step="photodiode">
+                  <div class="pipeline-step-top">
+                    <span class="pipeline-index">STAGE 01</span>
+                    <span class="pipeline-state" data-step-state>STANDBY</span>
+                  </div>
+                  <strong>Dual Photodiode</strong>
+                  <p>ESP32 ADC pins 34 &amp; 35 measure quantum optical shot noise fluctuations.</p>
+                  <small data-step-detail>Ready to sample</small>
+                </article>
+
+                <article class="pipeline-step" data-pipeline-step="differential">
+                  <div class="pipeline-step-top">
+                    <span class="pipeline-index">STAGE 02</span>
+                    <span class="pipeline-state" data-step-state>STANDBY</span>
+                  </div>
+                  <strong>Differential Subtraction</strong>
+                  <p>Ch1 vs Ch2 analog subtraction cancels ambient thermal and 50/60Hz AC drift.</p>
+                  <small data-step-detail>CMRR Active</small>
+                </article>
+
+                <article class="pipeline-step" data-pipeline-step="lsb">
+                  <div class="pipeline-step-top">
+                    <span class="pipeline-index">STAGE 03</span>
+                    <span class="pipeline-state" data-step-state>STANDBY</span>
+                  </div>
+                  <strong>LSB Extraction</strong>
+                  <p>Least significant bits of digitized noise matrix are extracted into bit stream.</p>
+                  <small data-step-detail>Bitwise mask 0x01</small>
+                </article>
+
+                <article class="pipeline-step" data-pipeline-step="whitening">
+                  <div class="pipeline-step-top">
+                    <span class="pipeline-index">STAGE 04</span>
+                    <span class="pipeline-state" data-step-state>STANDBY</span>
+                  </div>
+                  <strong>Von Neumann Filter</strong>
+                  <p>Whitens bias in firmware: 01&rarr;0, 10&rarr;1; equal bit pairs (00, 11) discarded.</p>
+                  <small data-step-detail>Uniform bit distribution</small>
+                </article>
+
+                <article class="pipeline-step" data-pipeline-step="pool">
+                  <div class="pipeline-step-top">
+                    <span class="pipeline-index">STAGE 05</span>
+                    <span class="pipeline-state" data-step-state>STANDBY</span>
+                  </div>
+                  <strong>Thread-safe Buffer</strong>
+                  <p>Serial [0xAA][byte] frames ingested into thread-safe collector ring buffer.</p>
+                  <small data-step-detail>Buffer synced</small>
+                </article>
+
+                <article class="pipeline-step" data-pipeline-step="conditioning">
+                  <div class="pipeline-step-top">
+                    <span class="pipeline-index">STAGE 06</span>
+                    <span class="pipeline-state" data-step-state>STANDBY</span>
+                  </div>
+                  <strong>Output Conditioning</strong>
+                  <p>Cryptographic entropy dispatched to AES-GCM cipher, PBKDF2, or REST endpoint.</p>
+                  <small data-step-detail>Available for client</small>
+                </article>
+              </div>
+
+              <div class="pipeline-telemetry" data-pipeline-telemetry>
+                Hardware and entropy collector telemetry ready. Click Generate to pull live entropy.
+              </div>
+            </div>
+
+            <!-- Output Display Panel -->
+            <div class="output-panel">
+              <div class="output-topbar">
+                <span class="form-label" style="margin:0;">Generated Random Stream</span>
+                <div class="format-pills" id="output-format-pills">
+                  <button type="button" class="format-pill active" data-format="hex">HEX</button>
+                  <button type="button" class="format-pill" data-format="bin">BINARY</button>
+                  <button type="button" class="format-pill" data-format="b64">BASE64</button>
+                  <button type="button" class="format-pill" data-format="int">INTEGER</button>
+                </div>
+              </div>
+
+              <div class="output-box" data-output-box>
+                <span class="placeholder-text">Awaiting entropy pull...</span>
+              </div>
+            </div>
+
+            <!-- Raw Detailed System JSON (Collapsible) -->
+            <details class="json-drawer">
+              <summary>View Raw System JSON State</summary>
+              <pre id="raw-status-json">Loading...</pre>
+            </details>
+          </div>
+
+          <!-- Generator Side Controls -->
+          <aside class="generator-side">
+            <div class="control-panel">
+              <span class="section-tag">CONTROL DISPATCH</span>
+              <h2>Entropy Stream</h2>
+
+              <div class="form-group">
+                <label for="generator-byte-count" class="form-label">Requested Bytes</label>
+                <select id="generator-byte-count" class="form-select">
+                  <option value="16">16 Bytes (128 bits)</option>
+                  <option value="32" selected>32 Bytes (256 bits - Standard Key)</option>
+                  <option value="64">64 Bytes (512 bits)</option>
+                  <option value="128">128 Bytes (1024 bits)</option>
+                  <option value="256">256 Bytes (2048 bits)</option>
+                </select>
+              </div>
+
+              <button class="button accent full-width" type="button" id="btn-generate-entropy">
+                Generate Entropy
+              </button>
+
+              <div class="dual-actions">
+                <button class="button secondary small" type="button" id="btn-copy-entropy">
+                  Copy Output
+                </button>
+                <button class="button quiet small" type="button" id="refresh-status">
+                  Refresh Status
+                </button>
+              </div>
+            </div>
+
+            <div class="status-panel" data-status-panel>
+              <span class="status-indicator" data-tone="success"></span>
+              <div>
+                <strong data-status-title>System Operational</strong>
+                <p data-status-text>Ready to generate hardware or cryptographically conditioned entropy.</p>
+              </div>
+            </div>
+
+            <div class="metric-grid compact">
+              <div class="metric-card">
+                <span class="metric-label">Batch Pull</span>
+                <strong id="stat-batch-count">32 B</strong>
+              </div>
+              <div class="metric-card">
+                <span class="metric-label">Latency</span>
+                <strong id="stat-batch-time">&mdash;</strong>
+              </div>
+              <div class="metric-card">
+                <span class="metric-label">Total Pulled</span>
+                <strong id="stat-total-pulled">&mdash;</strong>
+              </div>
+              <div class="metric-card">
+                <span class="metric-label">Uptime</span>
+                <strong id="stat-uptime">&mdash;</strong>
+              </div>
+            </div>
+          </aside>
         </div>
       </section>
 
+      <!-- ========================================== -->
+      <!-- SECTION 2: ENCRYPTION & DECRYPTION STUDIO   -->
+      <!-- ========================================== -->
       <section id="encryption" class="page-section d-none">
-        <h1>Encryption &amp; Decryption</h1>
-        <form id="encryption-form" class="row g-3">
-          <div class="col-md-5">
-            <label for="encryption-file" class="form-label">Select file</label>
-            <input id="encryption-file" class="form-control" type="file" required />
-          </div>
-          <div class="col-md-5">
-            <label for="encryption-password" class="form-label">Password</label>
-            <input id="encryption-password" class="form-control" type="password" placeholder="Enter password" required />
-          </div>
-          <div class="col-md-2">
-            <label for="encryption-mode" class="form-label">Mode</label>
-            <select id="encryption-mode" class="form-select">
-              <option value="encrypt">Encrypt</option>
-              <option value="decrypt">Decrypt</option>
-            </select>
-          </div>
-          <div class="col-12 mt-3">
-            <button type="submit" class="btn btn-primary w-100">Run</button>
-          </div>
-        </form>
-
-        <div id="encryption-status" class="alert alert-secondary mt-3">Ready.</div>
-        
-        <div class="mt-4" id="encryption-transparency" style="display: none;">
-          <h5>Cryptographic Details (Read-only)</h5>
-          <div class="row g-2">
-            <div class="col-md-12">
-              <label class="form-label">Derived Key (Hex)</label>
-              <input id="encryption-out-key" class="form-control form-control-sm" type="text" readonly />
-            </div>
-            <div class="col-md-6">
-              <label class="form-label">Initialization Vector - IV (Hex)</label>
-              <input id="encryption-out-iv" class="form-control form-control-sm" type="text" readonly />
-            </div>
-            <div class="col-md-6">
-              <label class="form-label">Authentication Tag (Hex)</label>
-              <input id="encryption-out-tag" class="form-control form-control-sm" type="text" readonly />
-            </div>
-          </div>
+        <div class="page-heading">
+          <span class="section-tag">02 / CRYPTOGRAPHIC SUITE</span>
+          <h1>Encryption &amp; Decryption</h1>
+          <p>
+            Authenticated military-grade AES-256-GCM cipher with hardware-backed initialization vectors
+            (IVs) and PBKDF2-derived keys for tamper-proof data confidentiality and integrity.
+          </p>
         </div>
 
-        <div class="mt-3">
-          <a id="encryption-download" class="btn btn-success d-none" href="#" download>Download result</a>
+        <div class="panel-card">
+          <form id="encryption-form">
+            <div class="form-row">
+              <div class="form-group" style="flex: 2;">
+                <label class="form-label">Mode of Operation</label>
+                <select id="encryption-mode" class="form-select">
+                  <option value="encrypt">Encrypt (Plaintext &rarr; AES-256-GCM Ciphertext)</option>
+                  <option value="decrypt">Decrypt (Ciphertext &rarr; Verified Plaintext)</option>
+                </select>
+              </div>
+              <div class="form-group" style="flex: 3;">
+                <label for="encryption-password" class="form-label">Passphrase / Secret</label>
+                <input
+                  id="encryption-password"
+                  class="form-input"
+                  type="password"
+                  placeholder="Enter cryptographic passphrase"
+                  required
+                />
+              </div>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 1.2rem;">
+              <label for="encryption-file" class="form-label">Select or Upload File</label>
+              <input id="encryption-file" class="form-input" type="file" required style="cursor: pointer; background: #080808;" />
+            </div>
+
+            <!-- Drag & Drop Zone -->
+            <div class="drop-zone" id="encryption-drop-zone">
+              <div class="drop-zone-icon">&#8679;</div>
+              <p><strong>Or drag and drop file here</strong></p>
+              <p style="font-size: 0.78rem;">Supports images, documents, archives, and binaries up to 10MB</p>
+              <div id="file-info-badge" class="file-info-badge" style="display: none;"></div>
+            </div>
+
+            <button type="submit" class="button primary full-width">
+              Execute Cipher Operation
+            </button>
+          </form>
+
+          <div id="encryption-status" class="alert-banner">Ready.</div>
+
+          <!-- Cryptographic Transparency Details Drawer -->
+          <div class="crypto-inspector" id="encryption-transparency">
+            <h4>Cryptographic Transparency Details</h4>
+            <div class="form-row" style="margin-bottom: 1rem;">
+              <div class="form-group" style="grid-column: 1 / -1;">
+                <label class="form-label">Derived 256-bit Key (Hex)</label>
+                <div class="field-with-copy">
+                  <input id="encryption-key" class="form-input" type="text" readonly placeholder="Derived key will appear upon execution..." />
+                  <input id="encryption-out-key" type="hidden" />
+                  <button type="button" class="button quiet small" onclick="navigator.clipboard.writeText(document.getElementById('encryption-key').value)">Copy</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Initialization Vector - IV (96-bit Hex)</label>
+                <div class="field-with-copy">
+                  <input id="encryption-iv" class="form-input" type="text" readonly placeholder="IV will appear upon execution..." />
+                  <input id="encryption-out-iv" type="hidden" />
+                  <button type="button" class="button quiet small" onclick="navigator.clipboard.writeText(document.getElementById('encryption-iv').value)">Copy</button>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Authentication Tag (128-bit Hex)</label>
+                <div class="field-with-copy">
+                  <input id="encryption-tag" class="form-input" type="text" readonly placeholder="Tag will appear upon execution..." />
+                  <input id="encryption-out-tag" type="hidden" />
+                  <button type="button" class="button quiet small" onclick="navigator.clipboard.writeText(document.getElementById('encryption-tag').value)">Copy</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Download Action -->
+          <div style="margin-top: 1.5rem;">
+            <a id="encryption-download" class="button accent full-width d-none" href="#" download>
+              Download Resulting Artifact
+            </a>
+          </div>
         </div>
       </section>
 
+      <!-- ========================================== -->
+      <!-- SECTION 3: KEY GENERATION STUDIO           -->
+      <!-- ========================================== -->
       <section id="keygen" class="page-section d-none">
-        <h1>Key Generation</h1>
-        <form id="keygen-form" class="row g-3">
-          <div class="col-md-6">
-            <label for="keygen-password" class="form-label">Password</label>
-            <input id="keygen-password" class="form-control" type="text" placeholder="Enter password" />
-          </div>
-          <div class="col-md-6">
-            <label for="keygen-salt" class="form-label">Salt</label>
-            <input id="keygen-salt" class="form-control" type="text" placeholder="Enter salt" />
-          </div>
-          <div class="col-12">
-            <button type="submit" class="btn btn-primary">Generate key</button>
-            <button type="button" id="copy-key-btn" class="btn btn-outline-secondary">Copy key</button>
-          </div>
-        </form>
+        <div class="page-heading">
+          <span class="section-tag">03 / KEY DERIVATION</span>
+          <h1>Key Generation</h1>
+          <p>
+            Generate cryptographically hardened 256-bit keys using PBKDF2-HMAC-SHA256 with 100,000
+            iterations and hardware-entropy-seeded salts to resist offline dictionary attacks.
+          </p>
+        </div>
 
-        <div id="keygen-status" class="alert alert-secondary mt-3">Ready.</div>
-        <div class="mt-3">
-          <label for="keygen-output" class="form-label">Generated key</label>
-          <textarea id="keygen-output" class="form-control" rows="6" readonly placeholder="Generated key will appear here..."></textarea>
+        <div class="panel-card">
+          <form id="keygen-form">
+            <div class="form-row">
+              <div class="form-group">
+                <label for="keygen-password" class="form-label">Passphrase</label>
+                <input
+                  id="keygen-password"
+                  class="form-input"
+                  type="text"
+                  placeholder="Enter secret passphrase (optional)"
+                />
+              </div>
+
+              <div class="form-group">
+                <label for="keygen-salt" class="form-label">Salt (Hex / Text)</label>
+                <div class="field-with-copy">
+                  <input
+                    id="keygen-salt"
+                    class="form-input"
+                    type="text"
+                    placeholder="Enter salt or generate random"
+                  />
+                  <button type="button" class="button secondary small" id="btn-random-salt">
+                    Random Salt
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div class="dual-actions" style="margin-top: 0.5rem; margin-bottom: 1.2rem;">
+              <button type="submit" class="button primary">Generate key</button>
+              <button type="button" id="copy-key-btn" class="button secondary">Copy key</button>
+            </div>
+          </form>
+
+          <div id="keygen-status" class="alert-banner">Ready.</div>
+
+          <div style="margin-top: 1.5rem;">
+            <label for="keygen-output" class="form-label">Derived 256-bit Key Output</label>
+            <textarea
+              id="keygen-output"
+              class="form-textarea"
+              rows="5"
+              readonly
+              placeholder="Generated key will appear here in hex..."
+            ></textarea>
+          </div>
         </div>
       </section>
 
-      <section id="settings" class="page-section d-none">
-        <h1>Settings</h1>
-        <form id="settings-form" class="row g-3">
-          <div class="col-md-4">
-            <label for="settings-port" class="form-label">COM Port</label>
-            <input id="settings-port" class="form-control" type="text" />
-          </div>
-          <div class="col-md-4">
-            <label for="settings-baud" class="form-label">Baud Rate</label>
-            <input id="settings-baud" class="form-control" type="number" min="1" step="1" />
-          </div>
-          <div class="col-md-4">
-            <label for="settings-source" class="form-label">Entropy Source</label>
-            <input id="settings-source" class="form-control" type="text" />
-          </div>
-          <div class="col-12">
-            <button type="submit" class="btn btn-primary">Save settings</button>
-          </div>
-        </form>
+      <!-- ========================================== -->
+      <!-- SECTION 4: NIST RANDOMNESS ANALYSIS        -->
+      <!-- ========================================== -->
+      <section id="test" class="page-section d-none">
+        <div class="page-heading">
+          <span class="section-tag">04 / STATISTICAL VALIDATION</span>
+          <h1>Entropy Test</h1>
+          <p>
+            Rigorous statistical randomness validation suite powered by Python scipy/numpy executing
+            NIST SP 800-22 tests: Monobit, Block Frequency, Runs, and Chi-Square Byte Distribution.
+          </p>
+        </div>
 
-        <div id="settings-status" class="alert alert-secondary mt-3">Loading settings...</div>
+        <div class="panel-card" style="margin-bottom: 1.5rem;">
+          <form id="entropy-test-form">
+            <div class="form-row" style="align-items: end;">
+              <div class="form-group">
+                <label for="entropy-bytes" class="form-label">Test Byte Count</label>
+                <input
+                  id="entropy-bytes"
+                  class="form-input"
+                  type="number"
+                  min="64"
+                  step="64"
+                  value="1024"
+                />
+              </div>
+
+              <div class="form-group">
+                <label for="entropy-mode" class="form-label">Analysis Mode</label>
+                <select id="entropy-mode" class="form-select">
+                  <option value="quick" selected>Quick (Core NIST STS Tests)</option>
+                  <option value="full">Full (Comprehensive NIST SP 800-22)</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <button type="submit" class="button primary full-width">Run test</button>
+              </div>
+            </div>
+          </form>
+
+          <div id="entropy-status" class="alert-banner">Ready.</div>
+        </div>
+
+        <!-- 4 Test Metric Cards with P-Value Gauges -->
+        <div class="test-cards-grid" id="nist-test-cards">
+          <div class="test-card" id="card-monobit">
+            <div class="test-card-top">
+              <span class="pipeline-index">NIST TEST 01</span>
+              <span class="test-badge pending">PENDING</span>
+            </div>
+            <strong>Monobit Frequency</strong>
+            <p>Tests proportion of 0s and 1s across the bit stream. Should be approx 50/50.</p>
+            <div class="p-value-meter">
+              <div class="p-value-fill" style="width: 0%;"></div>
+            </div>
+            <small><span>P-Value: &mdash;</span><span>Threshold: &alpha; &ge; 0.01</span></small>
+          </div>
+
+          <div class="test-card" id="card-block">
+            <div class="test-card-top">
+              <span class="pipeline-index">NIST TEST 02</span>
+              <span class="test-badge pending">PENDING</span>
+            </div>
+            <strong>Block Frequency</strong>
+            <p>Verifies local uniformity across non-overlapping M-bit blocks.</p>
+            <div class="p-value-meter">
+              <div class="p-value-fill" style="width: 0%;"></div>
+            </div>
+            <small><span>P-Value: &mdash;</span><span>Threshold: &alpha; &ge; 0.01</span></small>
+          </div>
+
+          <div class="test-card" id="card-runs">
+            <div class="test-card-top">
+              <span class="pipeline-index">NIST TEST 03</span>
+              <span class="test-badge pending">PENDING</span>
+            </div>
+            <strong>Runs Test</strong>
+            <p>Tests uninterrupted sequences of identical bits to detect oscillatory bias.</p>
+            <div class="p-value-meter">
+              <div class="p-value-fill" style="width: 0%;"></div>
+            </div>
+            <small><span>P-Value: &mdash;</span><span>Threshold: &alpha; &ge; 0.01</span></small>
+          </div>
+
+          <div class="test-card" id="card-byte-dist">
+            <div class="test-card-top">
+              <span class="pipeline-index">NIST TEST 04</span>
+              <span class="test-badge pending">PENDING</span>
+            </div>
+            <strong>Chi-Square Byte Dist</strong>
+            <p>Goodness-of-fit test across 256 possible byte bins [0..255].</p>
+            <div class="p-value-meter">
+              <div class="p-value-fill" style="width: 0%;"></div>
+            </div>
+            <small><span>P-Value: &mdash;</span><span>Threshold: &alpha; &ge; 0.01</span></small>
+          </div>
+        </div>
+
+        <!-- Interactive SVG Charts -->
+        <div class="charts-grid">
+          <div class="chart-card">
+            <div class="chart-head">
+              <div>
+                <h3>Bit Proportion Balance</h3>
+                <p>Proportion of 0s vs 1s in usable generated stream.</p>
+              </div>
+              <span class="chart-badge" id="chart-ratio-badge">&mdash;</span>
+            </div>
+            <svg class="chart" id="chart-bit-distribution" viewBox="0 0 540 220" role="img"></svg>
+          </div>
+
+          <div class="chart-card">
+            <div class="chart-head">
+              <div>
+                <h3>NIST P-Value Spectrum</h3>
+                <p>Calculated P-values vs &alpha; = 0.01 significance threshold.</p>
+              </div>
+              <span class="chart-badge" id="chart-verdict-badge">Awaiting test</span>
+            </div>
+            <svg class="chart" id="chart-pvalues" viewBox="0 0 540 220" role="img"></svg>
+          </div>
+        </div>
+
+        <!-- Session History Table -->
+        <div class="table-panel">
+          <div class="panel-card-head" style="margin: 0; padding: 1.1rem 1.2rem;">
+            <h3 style="font-size: 1rem;">NIST Session Execution History</h3>
+            <span class="processing-counter" id="test-history-count">0 Runs</span>
+          </div>
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Run</th>
+                  <th>Bytes</th>
+                  <th>Mode</th>
+                  <th>Monobit P</th>
+                  <th>Block P</th>
+                  <th>Runs P</th>
+                  <th>Chi-Sq P</th>
+                  <th>Verdict</th>
+                </tr>
+              </thead>
+              <tbody id="test-history-table">
+                <tr>
+                  <td colspan="8" style="text-align: center; color: var(--muted); padding: 2rem;">
+                    No test runs recorded in this session. Run an entropy test above.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Collapsible Raw JSON -->
+        <details class="json-drawer">
+          <summary>View Complete NIST JSON Output</summary>
+          <textarea
+            id="entropy-output"
+            class="form-textarea"
+            rows="14"
+            readonly
+            placeholder="Test output will appear here..."
+          ></textarea>
+        </details>
       </section>
 
-      <section id="test" class="page-section d-none">
-        <h1>Entropy Test</h1>
-        <form id="entropy-test-form" class="row g-3">
-          <div class="col-md-4">
-            <label for="entropy-bytes" class="form-label">Byte count</label>
-            <input id="entropy-bytes" class="form-control" type="number" min="64" step="64" value="1024" />
-          </div>
-          <div class="col-md-4">
-            <label for="entropy-mode" class="form-label">Mode</label>
-            <select id="entropy-mode" class="form-select">
-              <option value="quick">Quick</option>
-              <option value="full">Full</option>
-            </select>
-          </div>
-          <div class="col-md-4 d-flex align-items-end">
-            <button type="submit" class="btn btn-primary w-100">Run test</button>
-          </div>
-        </form>
+      <!-- ========================================== -->
+      <!-- SECTION 5: SETTINGS & HARDWARE CONFIG      -->
+      <!-- ========================================== -->
+      <section id="settings" class="page-section d-none">
+        <div class="page-heading">
+          <span class="section-tag">05 / HARDWARE &amp; SERVICE CONTROL</span>
+          <h1>Settings</h1>
+          <p>
+            Configure serial communication parameters for the ESP32 hardware entropy source, select
+            active fallback providers, and trigger entropy pool reseeding.
+          </p>
+        </div>
 
-        <div id="entropy-status" class="alert alert-secondary mt-3">Ready.</div>
-        <div class="mt-3">
-          <label for="entropy-output" class="form-label">Result</label>
-          <textarea id="entropy-output" class="form-control" rows="16" readonly placeholder="Test output will appear here..."></textarea>
+        <div class="panel-card">
+          <form id="settings-form">
+            <div class="form-row">
+              <div class="form-group">
+                <label for="settings-port" class="form-label">Serial COM Port</label>
+                <input
+                  id="settings-port"
+                  class="form-input"
+                  type="text"
+                  placeholder="e.g. COM3 or /dev/ttyUSB0"
+                />
+              </div>
+
+              <div class="form-group">
+                <label for="settings-baud" class="form-label">Baud Rate</label>
+                <input
+                  id="settings-baud"
+                  class="form-input"
+                  type="number"
+                  min="9600"
+                  step="9600"
+                  placeholder="115200"
+                />
+              </div>
+
+              <div class="form-group">
+                <label for="settings-source" class="form-label">Entropy Source</label>
+                <input
+                  id="settings-source"
+                  class="form-input"
+                  type="text"
+                  placeholder="e.g. hardware or openssl"
+                />
+              </div>
+            </div>
+
+            <div class="dual-actions" style="margin-top: 1rem;">
+              <button type="submit" class="button primary">Save settings</button>
+              <button type="button" id="btn-reseed-pool" class="button secondary">
+                Reseed Entropy Pool
+              </button>
+            </div>
+          </form>
+
+          <div id="settings-status" class="alert-banner">Loading settings...</div>
+        </div>
+      </section>
+
+      <!-- ========================================== -->
+      <!-- SECTION 6: ARCHITECTURE & HOW IT WORKS     -->
+      <!-- ========================================== -->
+      <section id="about" class="page-section d-none">
+        <div class="page-heading">
+          <span class="section-tag">06 / SPECIFICATIONS &amp; DESIGN</span>
+          <h1>Architecture &amp; How It Works</h1>
+          <p>
+            Detailed engineering breakdown of the PseudoQuantum hybrid entropy extraction model,
+            debiasing firmware, and cryptographic subsystem.
+          </p>
+        </div>
+
+        <div class="architecture-grid">
+          <div class="arch-card">
+            <span class="section-tag">PHYSICAL LAYER</span>
+            <h3>Dual-Photodiode Quantum Shot Noise</h3>
+            <p>
+              True quantum randomness arises from photon arrival statistics governed by Poisson processes.
+              Two reverse-biased PIN photodiodes convert quantum optical shot noise into microvolt fluctuations.
+            </p>
+            <ul>
+              <li><strong>ADC Pins:</strong> ESP32 GPIO 34 (Channel 1) &amp; GPIO 35 (Channel 2).</li>
+              <li><strong>Common Mode Rejection:</strong> Subtraction of Ch1 - Ch2 cancels ambient light flicker and thermal fluctuations.</li>
+              <li><strong>Sampling Frequency:</strong> Continuous high-frequency ADC acquisition via hardware timer.</li>
+            </ul>
+          </div>
+
+          <div class="arch-card">
+            <span class="section-tag">ALGORITHMIC LAYER</span>
+            <h3>Von Neumann Whitening &amp; Debiasing</h3>
+            <p>
+              Raw ADC least significant bits (LSBs) can exhibit slight physical bias toward 0 or 1.
+              Von Neumann's algorithm eliminates all first-order bias at the cost of variable throughput:
+            </p>
+            <ul>
+              <li><strong>Bit Pair '01':</strong> Emits clean bit <code>0</code></li>
+              <li><strong>Bit Pair '10':</strong> Emits clean bit <code>1</code></li>
+              <li><strong>Bit Pairs '00' &amp; '11':</strong> Discarded entirely</li>
+              <li><strong>Output:</strong> A perfectly balanced 50/50 bit stream transmitted over serial framed as <code>[0xAA][byte]</code>.</li>
+            </ul>
+          </div>
+
+          <div class="arch-card">
+            <span class="section-tag">BACKEND SUBSYSTEM</span>
+            <h3>Thread-Safe Ring Buffer &amp; Fallback</h3>
+            <p>
+              The C++17 backend decouples hardware collection from consumer requests via a thread-safe
+              entropy pool:
+            </p>
+            <ul>
+              <li><strong>Background Collector:</strong> Runs continuous polling worker thread with auto-refill triggers.</li>
+              <li><strong>Graceful Fallback:</strong> If serial disconnects or hardware is unavailable, seamlessly pivots to OpenSSL <code>RAND_bytes()</code>.</li>
+              <li><strong>Zero Blocking:</strong> Fast REST API reads directly from pool buffer with sub-millisecond response times.</li>
+            </ul>
+          </div>
+
+          <div class="arch-card">
+            <span class="section-tag">CRYPTOGRAPHY LAYER</span>
+            <h3>AES-256-GCM &amp; Key Derivation</h3>
+            <p>
+              Cryptographic operations implement industry best practices:
+            </p>
+            <ul>
+              <li><strong>Authenticated Cipher:</strong> AES-256 in Galois/Counter Mode (GCM) guarantees both confidentiality and ciphertext integrity.</li>
+              <li><strong>Hardware-Backed IV:</strong> 96-bit Initialization Vectors drawn directly from the entropy pool to prevent IV reuse.</li>
+              <li><strong>Key Derivation:</strong> PBKDF2-HMAC-SHA256 with 100,000 iterations and random salt.</li>
+            </ul>
+          </div>
         </div>
       </section>
     </main>
 
-    <script
-      src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
-      integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
-      crossorigin="anonymous"
-    ></script>
-    <script src="js/app.js" defer></script>
+    <footer class="site-footer">
+      <div class="container footer-inner">
+        <div>
+          <div class="brand">
+            <span class="brand-mark">PQ</span>
+            <span>PseudoQuantum Entropy</span>
+          </div>
+          <p>
+            Hybrid quantum shot-noise and cryptographic entropy service engineered for secure key
+            derivation and authenticated storage.
+          </p>
+        </div>
+        <span class="footer-note">C++17 / ESP32 / OpenSSL / NIST SP 800-22</span>
+      </div>
+    </footer>
+
+    <!-- Frontend Modular Scripts -->
     <script src="js/api.js" defer></script>
     <script src="js/home.js" defer></script>
     <script src="js/encryption.js" defer></script>
     <script src="js/keygen.js" defer></script>
     <script src="js/settings.js" defer></script>
     <script src="js/test.js" defer></script>
+    <script src="js/app.js" defer></script>
   </body>
 </html>

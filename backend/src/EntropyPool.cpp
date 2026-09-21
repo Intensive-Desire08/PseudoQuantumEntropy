@@ -174,7 +174,6 @@ size_t EntropyPool::getRefillThreshold() const {
 }
 
 bool EntropyPool::refill() {
-    std::lock_guard<std::mutex> lock(mutex);
     return collectEntropy();
 }
 

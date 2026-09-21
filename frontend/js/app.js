@@ -2,31 +2,53 @@ window.PQEPage = window.PQEPage || {};
 
 window.PQEApp = {
   init() {
-    const page = document.body.dataset.page || 'home';
-    this.setActivePage(page);
-
+    // Navigation link listeners
     const navLinks = document.querySelectorAll('.nav-link');
-    navLinks.forEach((link) => {
-      const target = link.getAttribute('href');
-      if (target && target.startsWith('#')) {
-        link.addEventListener('click', (event) => {
-          const id = target.replace('#', '');
-          event.preventDefault();
-          this.setActivePage(id);
-        });
-      }
-    });
+    const navMenu = document.querySelector('.nav-menu');
+    const navToggle = document.querySelector('.nav-toggle');
 
-    const refreshButton = document.getElementById('refresh-status');
-    if (refreshButton) {
-      refreshButton.addEventListener('click', () => {
-        if (window.PQEPage.home) {
-          window.PQEPage.home();
-        }
+    // Mobile nav toggle
+    if (navToggle && navMenu) {
+      navToggle.addEventListener('click', () => {
+        const isOpen = navMenu.classList.toggle('open');
+        navToggle.setAttribute('aria-expanded', String(isOpen));
       });
     }
 
-    Object.keys(window.PQEPage).forEach(key => {
+    navLinks.forEach((link) => {
+      link.addEventListener('click', (event) => {
+        const target = link.getAttribute('href');
+        if (target && target.startsWith('#')) {
+          event.preventDefault();
+          const pageId = target.replace('#', '');
+          this.setActivePage(pageId);
+          window.location.hash = target;
+
+          // Close mobile menu if open
+          if (navMenu && navMenu.classList.contains('open')) {
+            navMenu.classList.remove('open');
+            if (navToggle) navToggle.setAttribute('aria-expanded', 'false');
+          }
+        }
+      });
+    });
+
+    // Hashchange listener for browser back/forward buttons
+    window.addEventListener('hashchange', () => {
+      const hash = window.location.hash.replace('#', '');
+      if (hash) {
+        this.setActivePage(hash);
+      }
+    });
+
+    // Determine initial page from hash or default to home
+    const initialHash = window.location.hash.replace('#', '');
+    const validPages = ['home', 'generator', 'encryption', 'keygen', 'test', 'settings', 'about'];
+    const startPage = validPages.includes(initialHash) ? initialHash : 'home';
+    this.setActivePage(startPage);
+
+    // Initialize all page controllers
+    Object.keys(window.PQEPage).forEach((key) => {
       if (typeof window.PQEPage[key] === 'function') {
         window.PQEPage[key]();
       }
@@ -34,21 +56,39 @@ window.PQEApp = {
   },
 
   setActivePage(pageName) {
+    // Map generator alias to home
+    const targetId = pageName === 'generator' ? 'home' : pageName;
+
     const sections = document.querySelectorAll('.page-section');
+    let found = false;
+
     sections.forEach((section) => {
-      const isActive = section.id === pageName;
-      section.classList.toggle('active', isActive);
-      section.classList.toggle('d-none', !isActive);
+      const isTarget = section.id === targetId;
+      if (isTarget) found = true;
+      section.classList.toggle('active', isTarget);
+      section.classList.toggle('d-none', !isTarget);
     });
 
+    // If target not found, fallback to home
+    if (!found) {
+      const homeSection = document.getElementById('home');
+      if (homeSection) {
+        homeSection.classList.add('active');
+        homeSection.classList.remove('d-none');
+      }
+    }
+
+    // Update nav links active state
     const links = document.querySelectorAll('.nav-link');
     links.forEach((link) => {
-      const isActive = link.getAttribute('href') === `#${pageName}`;
-      link.classList.toggle('active', isActive);
-      link.setAttribute('aria-current', isActive ? 'page' : 'false');
+      const href = link.getAttribute('href');
+      const isTargetLink = href === `#${targetId}` || (targetId === 'home' && href === '#generator');
+      link.classList.toggle('active', isTargetLink);
+      link.setAttribute('aria-current', isTargetLink ? 'page' : 'false');
     });
 
-    document.body.dataset.page = pageName;
+    document.body.dataset.page = targetId;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 };
 
