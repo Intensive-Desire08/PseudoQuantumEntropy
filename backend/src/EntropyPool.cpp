@@ -19,6 +19,9 @@ EntropyPool::EntropyPool(
     , stopped(false)
     , totalBytesGenerated(0)
     , currentSpeed(0.0)
+    , windowBytesCollected(0)
+    , windowStartTime(std::chrono::steady_clock::now())
+    , speedHoldoffUntil(std::chrono::steady_clock::now())
     , collectorThread() {
     
     if (!entropySource) {
@@ -48,6 +51,9 @@ bool EntropyPool::start() {
     count = 0;
     totalBytesGenerated = 0;
     currentSpeed = 0.0;
+    windowBytesCollected = 0;
+    windowStartTime = std::chrono::steady_clock::now();
+    speedHoldoffUntil = std::chrono::steady_clock::now();
     stopped = false;
     running = true;
     
@@ -189,6 +195,14 @@ bool EntropyPool::refill() {
     return collectEntropy();
 }
 
+void EntropyPool::resetSpeed() {
+    std::lock_guard<std::mutex> lock(mutex);
+    currentSpeed.store(0.0);
+    windowBytesCollected.store(0);
+    windowStartTime = std::chrono::steady_clock::now();
+    speedHoldoffUntil = std::chrono::steady_clock::now() + std::chrono::milliseconds(1000);
+}
+
 void EntropyPool::setSource(std::shared_ptr<IEntropySource> source) {
     if (!source) {
         throw EntropyException("EntropyPool: Invalid entropy source (nullptr)");
@@ -197,6 +211,9 @@ void EntropyPool::setSource(std::shared_ptr<IEntropySource> source) {
     std::lock_guard<std::mutex> lock(mutex);
     entropySource = source;
     currentSpeed.store(0.0);
+    windowBytesCollected.store(0);
+    windowStartTime = std::chrono::steady_clock::now();
+    speedHoldoffUntil = std::chrono::steady_clock::now() + std::chrono::milliseconds(1000);
     { std::stringstream ss; ss << "[EntropyPool] Source changed to: " << entropySource->getSourceName(); LOG_INFO(ss.str()); }
 
     // Wake up collector thread immediately to switch to new source
@@ -223,6 +240,8 @@ void EntropyPool::collectionThread() {
         
         if (!source || !source->isAvailable()) {
             currentSpeed.store(0.0);
+            windowBytesCollected.store(0);
+            windowStartTime = std::chrono::steady_clock::now();
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
             continue;
         }
@@ -235,6 +254,8 @@ void EntropyPool::collectionThread() {
             
             if (!success) {
                 currentSpeed.store(0.0);
+                windowBytesCollected.store(0);
+                windowStartTime = std::chrono::steady_clock::now();
                 std::this_thread::sleep_for(std::chrono::milliseconds(100));
             } else if (!needRefill && isHardware) {
                 // Buffer is full; yield briefly between reads so hardware streaming paces naturally
@@ -256,11 +277,16 @@ void EntropyPool::collectionThread() {
                     }
                     cv.notify_all();
                     
-                    std::chrono::duration<double> elapsed = end - start;
-                    if (elapsed.count() > 0) {
-                        double inst_speed = entropy.size() / elapsed.count();
-                        double curr = currentSpeed.load();
-                        currentSpeed.store(curr == 0.0 ? inst_speed : (0.2 * inst_speed + 0.8 * curr));
+                    auto now = std::chrono::steady_clock::now();
+                    if (now < speedHoldoffUntil) {
+                        currentSpeed.store(0.0);
+                    } else {
+                        std::chrono::duration<double> elapsed = end - start;
+                        if (elapsed.count() > 0) {
+                            double inst_speed = entropy.size() / elapsed.count();
+                            double curr = currentSpeed.load();
+                            currentSpeed.store(curr == 0.0 ? inst_speed : (0.2 * inst_speed + 0.8 * curr));
+                        }
                     }
                 }
             } catch (...) {
@@ -287,6 +313,8 @@ bool EntropyPool::collectEntropy() {
     
     if (!source->isAvailable()) {
         currentSpeed.store(0.0);
+        windowBytesCollected.store(0);
+        windowStartTime = std::chrono::steady_clock::now();
         return false;
     }
     
@@ -303,22 +331,44 @@ bool EntropyPool::collectEntropy() {
             }
             cv.notify_all();
             
-            std::chrono::duration<double> elapsed = end - start;
-            if (elapsed.count() > 0) {
-                double inst_speed = entropy.size() / elapsed.count();
-                double curr = currentSpeed.load();
-                currentSpeed.store(curr == 0.0 ? inst_speed : (0.2 * inst_speed + 0.8 * curr));
+            auto now = std::chrono::steady_clock::now();
+            if (now < speedHoldoffUntil) {
+                currentSpeed.store(0.0);
+            } else {
+                if (source->getSourceType() == "hardware") {
+                    // For hardware, calculate real continuous throughput over 1-second sliding window!
+                    windowBytesCollected += entropy.size();
+                    auto elapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(now - windowStartTime).count();
+                    if (elapsedMs >= 1000) {
+                        double realSpeed = (static_cast<double>(windowBytesCollected.load()) * 1000.0) / static_cast<double>(elapsedMs);
+                        double curr = currentSpeed.load();
+                        currentSpeed.store(curr == 0.0 ? realSpeed : (0.3 * realSpeed + 0.7 * curr));
+                        windowBytesCollected.store(0);
+                        windowStartTime = now;
+                    }
+                } else {
+                    std::chrono::duration<double> elapsed = end - start;
+                    if (elapsed.count() > 0) {
+                        double inst_speed = entropy.size() / elapsed.count();
+                        double curr = currentSpeed.load();
+                        currentSpeed.store(curr == 0.0 ? inst_speed : (0.2 * inst_speed + 0.8 * curr));
+                    }
+                }
             }
             
             return true;
         }
         
         currentSpeed.store(0.0);
+        windowBytesCollected.store(0);
+        windowStartTime = std::chrono::steady_clock::now();
         return false;
         
     } catch (const std::exception& e) {
         { std::stringstream ss; ss << "[EntropyPool] Error collecting entropy: " << e.what(); LOG_ERROR(ss.str()); }
         currentSpeed.store(0.0);
+        windowBytesCollected.store(0);
+        windowStartTime = std::chrono::steady_clock::now();
         return false;
     }
 }

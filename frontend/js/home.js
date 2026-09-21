@@ -18,6 +18,7 @@ window.PQEPollController = window.PQEPollController || {
   let statusInterval = null;
   let lastBytes = null;
   let lastTime = null;
+  let lastSourceType = null;
   let currentEntropyHex = '';
   let activeFormat = 'hex';
 
@@ -166,12 +167,23 @@ window.PQEPollController = window.PQEPollController || {
           metricPool.textContent = `${entropy.pool_size ?? 0} bytes`;
         }
 
+        const currentSourceType = entropy.source_type || 'unknown';
+        if (lastSourceType !== null && lastSourceType !== currentSourceType) {
+          lastBytes = null;
+          lastTime = null;
+        }
+        lastSourceType = currentSourceType;
+
         const currentBytes = entropy.total_generated || 0;
         let speedStr = 'Calculating...';
 
         if (entropy.speed !== undefined && entropy.speed > 0) {
           const speedKB = entropy.speed / 1024;
           speedStr = `${speedKB.toFixed(1)} KB/s`;
+        } else if (entropy.speed !== undefined && entropy.speed === 0) {
+          speedStr = '0.0 KB/s';
+          lastBytes = currentBytes;
+          lastTime = Date.now();
         } else {
           const currentTime = Date.now();
           if (lastBytes !== null && lastTime !== null) {

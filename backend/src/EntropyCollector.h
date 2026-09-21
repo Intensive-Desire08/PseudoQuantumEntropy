@@ -156,6 +156,11 @@ public:
     double getSpeed() const;
 
     /**
+     * @brief Reset the speed calculation
+     */
+    void resetSpeed();
+
+    /**
      * @brief Reset the byte counter
      */
     void resetByteCounter();

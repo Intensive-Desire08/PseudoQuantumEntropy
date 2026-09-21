@@ -240,6 +240,12 @@ double EntropyCollector::getSpeed() const {
     return entropyPool->getSpeed();
 }
 
+void EntropyCollector::resetSpeed() {
+    if (entropyPool) {
+        entropyPool->resetSpeed();
+    }
+}
+
 void EntropyCollector::resetByteCounter() {
     if (entropySource) {
         entropySource->resetByteCounter();
@@ -383,6 +389,9 @@ void EntropyCollector::sourceMonitorLoop() {
                 failedCount++;
                 if (failedCount >= 2) {
                     failedCount = 0;
+                    if (entropyPool) {
+                        entropyPool->resetSpeed();
+                    }
                     { std::stringstream ss; ss << "[EntropyCollector] Hardware paused or disconnected. Falling back to OpenSSL..."; LOG_INFO(ss.str()); }
                     
                     // If the cable was physically unplugged (port invalid), shut down the handle
@@ -415,6 +424,9 @@ void EntropyCollector::sourceMonitorLoop() {
             if (hardwareSource && hardwareSource->isPortOpen()) {
                 if (hardwareSource->hasIncomingData()) {
                     if (hardwareSource->resumeFromPause()) {
+                        if (entropyPool) {
+                            entropyPool->resetSpeed();
+                        }
                         { std::stringstream ss; ss << "[EntropyCollector] Hardware source resumed! Switching back..."; LOG_INFO(ss.str()); }
                         entropySource = hardwareSource;
                         activeSourceType = "hardware";
@@ -434,6 +446,9 @@ void EntropyCollector::sourceMonitorLoop() {
                     try {
                         auto testSource = std::make_shared<SerialEntropySource>(port, baudRate, 1000);
                         if (testSource->initialize() && testSource->isAvailable()) {
+                            if (entropyPool) {
+                                entropyPool->resetSpeed();
+                            }
                             { std::stringstream ss; ss << "[EntropyCollector] Hardware reconnected! Switching back..."; LOG_INFO(ss.str()); }
                             hardwareSource = testSource;
                             entropySource = hardwareSource;

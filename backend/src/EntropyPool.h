@@ -144,6 +144,11 @@ public:
     bool refill();
 
     /**
+     * @brief Reset speed metrics and hold at 0 for transition
+     */
+    void resetSpeed();
+
+    /**
      * @brief Set the entropy source
      * @param source New entropy source
      */
@@ -204,6 +209,9 @@ private:
     std::atomic<bool> stopped;
     std::atomic<size_t> totalBytesGenerated;
     std::atomic<double> currentSpeed;
+    std::atomic<size_t> windowBytesCollected{0};
+    std::chrono::steady_clock::time_point windowStartTime;
+    std::chrono::steady_clock::time_point speedHoldoffUntil;
 
     // Synchronization
     mutable std::mutex mutex;
