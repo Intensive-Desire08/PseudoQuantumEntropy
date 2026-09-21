@@ -210,12 +210,8 @@ void EntropyPool::collectionThread() {
         }
         
         if (needRefill) {
-            // Collect entropy
-            bool success = false;
-            {
-                std::lock_guard<std::mutex> lock(mutex);
-                success = collectEntropy();
-            }
+            // Collect entropy without holding pool mutex during I/O
+            bool success = collectEntropy();
             
             if (!success) {
                 // If collection failed, wait a bit before retrying
@@ -266,23 +262,33 @@ void EntropyPool::collectionThread() {
 }
 
 bool EntropyPool::collectEntropy() {
-    if (!entropySource) {
+    std::shared_ptr<IEntropySource> source;
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        source = entropySource;
+    }
+    
+    if (!source) {
         return false;
     }
     
-    if (!entropySource->isAvailable()) {
+    if (!source->isAvailable()) {
         { std::stringstream ss; ss << "[EntropyPool] Entropy source not available"; LOG_ERROR(ss.str()); }
         return false;
     }
     
     try {
         auto start = std::chrono::steady_clock::now();
-        std::vector<uint8_t> entropy = entropySource->getEntropy(COLLECTION_BATCH_SIZE);
+        std::vector<uint8_t> entropy = source->getEntropy(COLLECTION_BATCH_SIZE);
         auto end = std::chrono::steady_clock::now();
         
         if (!entropy.empty()) {
-            addBytes(entropy);
-            totalBytesGenerated += entropy.size();
+            {
+                std::lock_guard<std::mutex> lock(mutex);
+                addBytes(entropy);
+                totalBytesGenerated += entropy.size();
+            }
+            cv.notify_all();
             
             std::chrono::duration<double> elapsed = end - start;
             if (elapsed.count() > 0) {

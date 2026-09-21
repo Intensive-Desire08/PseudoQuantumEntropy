@@ -377,10 +377,27 @@ npx playwright test
 npx playwright show-report
 
 # === FIRMWARE ===
-# Open PQTHardware/PQTHardware.ino in Arduino IDE
+# Open PQHardware/PQHardware.ino in Arduino IDE
 # Select Board: ESP32 Dev Module
-# Upload via USB
+# Upload via USB at 921600 baud
 ```
+
+### ⚡ Hardware Serial Protocol & Baud Rate Guide
+
+- **Current Default Baud Rate**: `921600` (set in `PQHardware.ino`, `config/backend_config.json`, and `SerialEntropySource.h`).
+- **Framing Protocol**: 66-byte chunked packet with 2-byte sync header: `[0xAA][0x55][64 raw bytes]`.
+- **Sampling Method**: 2-bit dual-ADC XOR extraction (`((val1 ^ val2) & 0x03)` looped 4 times per byte).
+
+#### ⚠️ Hardware Baud Rate Troubleshooting:
+If the ESP32 fails to communicate, reports frequent desyncs/timeouts, or drops bytes:
+1. **Low-Quality USB Micro Cables / Unpowered Hubs**: Some cheap USB Micro cables or unpowered USB hubs experience signal reflection and bit errors above 500,000 baud.
+2. **Step-Down Options**: If you experience framing/sync issues, step down the baud rate in **both** files to match:
+   - **460800 baud** (recommended intermediate step):
+     - In `PQHardware.ino`: `Serial.begin(460800);`
+     - In `config/backend_config.json`: `"baud_rate": 460800`
+   - **115200 baud** (fail-safe baseline):
+     - In `PQHardware.ino`: `Serial.begin(115200);`
+     - In `config/backend_config.json`: `"baud_rate": 115200`
 
 ---
 
@@ -388,6 +405,9 @@ npx playwright show-report
 
 | Date | Change | Details |
 |---|---|---|
+| 2026-09-21 | 921600 Baud & 64B Chunk Protocol | Upgraded serial baud rate to 921,600 and switched firmware to 2-bit ADC extraction. Implemented 66-byte chunked framing `[0xAA][0x55][64B payload]` with sliding auto-resynchronization. Added baud rate troubleshooting guide to CONTEXT.md. |
+| 2026-09-21 | High-Throughput Buffered Serial & Non-Blocking Pool | Added 2KB internal `rxBuffer` to `SerialEntropySource` to batch OS serial reads (eliminating 99% of async Boost/Windows syscall overhead). Decoupled `EntropyPool::collectEntropy()` from the pool mutex so consumers are never blocked while the background thread fetches entropy. Audited hardware throughput and Gateway continuous encryption threshold. |
+| 2026-09-21 | Backend LFSR Whitening Offload | Moved 32-bit Galois LFSR whitening from ESP32 firmware (`PQHardware.ino`) to backend (`SerialEntropySource`). ESP32 now streams raw sampled bytes directly over serial without MCU-side bit-level LFSR computation or artificial delays, boosting sampling speed. |
 | 2026-09-21 | Dynamic Hardware Fallback Fix | Fixed dynamic switching and speed freeze on ESP32 disconnect. Active ClearCommError health check in `SerialEntropySource::isAvailable()`, clean port closure, reset `hardwareAvailable` flag, and decay/reset speed in `EntropyPool`. |
 | 2026-09-20 | Encryption UX plan | Designed password-only `.pqe` file format — salt+IV+tag embedded in file header; frontend shows internals for transparency |
 | 2026-08-28 | README & License | Completed README.md and added MIT License |

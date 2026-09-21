@@ -354,7 +354,7 @@ void EntropyCollector::cleanup() {
 void EntropyCollector::sourceMonitorLoop() {
     int loopCount = 0;
     while (monitorRunning) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
         if (!monitorRunning) break;
         loopCount++;
 
@@ -365,9 +365,9 @@ void EntropyCollector::sourceMonitorLoop() {
             }
 
             if (!isAvail) {
-                { std::stringstream ss; ss << "[EntropyCollector] Hardware source disconnected! Falling back to OpenSSL..."; LOG_INFO(ss.str()); }
+                { std::stringstream ss; ss << "[EntropyCollector] Hardware silent or disconnected (>1s without data)! Falling back to OpenSSL..."; LOG_INFO(ss.str()); }
                 
-                // Clean up disconnected hardware source to close the serial port handle
+                // Clean up hardware source so the COM port handle is cleanly released
                 if (entropySource) {
                     try {
                         entropySource->shutdown();
@@ -384,13 +384,13 @@ void EntropyCollector::sourceMonitorLoop() {
                 }
             }
         } else if (activeSourceType == "openssl") {
-            // Check if hardware is back, but only every 1 second (5 * 200ms) to avoid spamming the port
-            if (loopCount >= 5) {
+            // Check if hardware is back every 1 second (10 * 100ms)
+            if (loopCount >= 10) {
                 loopCount = 0;
                 try {
                     auto testSource = std::make_shared<SerialEntropySource>(port, baudRate, 500);
-                    if (testSource->initialize()) {
-                        { std::stringstream ss; ss << "[EntropyCollector] Hardware source reconnected! Switching back..."; LOG_INFO(ss.str()); }
+                    if (testSource->initialize() && testSource->isAvailable()) {
+                        { std::stringstream ss; ss << "[EntropyCollector] Hardware source resumed/reconnected! Switching back..."; LOG_INFO(ss.str()); }
                         entropySource = testSource;
                         activeSourceType = "hardware";
                         activeSourceName = testSource->getSourceName();
@@ -398,9 +398,11 @@ void EntropyCollector::sourceMonitorLoop() {
                         if (entropyPool) {
                             entropyPool->setSource(entropySource);
                         }
+                    } else {
+                        testSource->shutdown();
                     }
                 } catch (const std::exception&) {
-                    // Still disconnected, do nothing
+                    // Still disconnected or paused, do nothing
                 }
             }
         }

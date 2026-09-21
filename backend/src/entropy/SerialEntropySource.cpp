@@ -26,7 +26,9 @@ SerialEntropySource::SerialEntropySource(const std::string& port, unsigned int b
 #endif
     , initialized(false)
     , available(false)
-    , bytesGenerated(0) {
+    , bytesGenerated(0)
+    , lastByteReceivedTimeMs(0)
+    , lfsrState(LFSR_INITIAL_SEED) {
 }
 
 SerialEntropySource::~SerialEntropySource() {
@@ -71,6 +73,9 @@ bool SerialEntropySource::initialize() {
         available = testConnection();
         
         if (available) {
+            lastByteReceivedTimeMs.store(std::chrono::duration_cast<std::chrono::milliseconds>(
+                std::chrono::steady_clock::now().time_since_epoch()
+            ).count());
             { std::stringstream ss; ss << "[SerialEntropySource] Connected to ESP32 on " << portName; LOG_INFO(ss.str()); }
         } else {
             { std::stringstream ss; ss << "[SerialEntropySource] Warning: No response from ESP32 on " << portName; LOG_INFO(ss.str()); }
@@ -119,28 +124,43 @@ bool SerialEntropySource::isAvailable() const {
         return false;
     }
 
-#if PQT_HAS_BOOST_ASIO
-    std::lock_guard<std::mutex> lock(mutex);
-    if (!serialPort.is_open()) {
-        available.store(false);
-        return false;
+    // Check last byte received time first (lock-free)
+    // If the hardware hasn't provided a valid byte within 1 second, consider it unresponsive/paused
+    int64_t lastByteTime = lastByteReceivedTimeMs.load();
+    if (lastByteTime > 0) {
+        int64_t nowMs = std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::steady_clock::now().time_since_epoch()
+        ).count();
+        if (nowMs - lastByteTime > 1000) {
+            available.store(false);
+            return false;
+        }
     }
+
+#if PQT_HAS_BOOST_ASIO
+    std::unique_lock<std::mutex> lock(mutex, std::try_to_lock);
+    if (lock.owns_lock()) {
+        if (!serialPort.is_open()) {
+            available.store(false);
+            return false;
+        }
 
 #ifdef _WIN32
-    HANDLE handle = const_cast<boost::asio::serial_port&>(serialPort).native_handle();
-    if (handle == INVALID_HANDLE_VALUE || handle == NULL) {
-        available.store(false);
-        return false;
-    }
+        HANDLE handle = const_cast<boost::asio::serial_port&>(serialPort).native_handle();
+        if (handle == INVALID_HANDLE_VALUE || handle == NULL) {
+            available.store(false);
+            return false;
+        }
 
-    DWORD commErrors = 0;
-    COMSTAT comStat;
-    if (!ClearCommError(handle, &commErrors, &comStat)) {
-        // Physical device disconnected / handle invalidated by Windows
-        available.store(false);
-        return false;
-    }
+        DWORD commErrors = 0;
+        COMSTAT comStat;
+        if (!ClearCommError(handle, &commErrors, &comStat)) {
+            // Physical device disconnected / handle invalidated by Windows
+            available.store(false);
+            return false;
+        }
 #endif
+    }
 #endif
 
     return available.load();
@@ -163,12 +183,12 @@ std::vector<uint8_t> SerialEntropySource::getEntropy(size_t numBytes) {
     (void)numBytes;
     throw EntropyException("Serial entropy source unavailable in this build");
 #else
-    
+    std::lock_guard<std::mutex> lock(mutex);
     std::vector<uint8_t> result;
     result.reserve(numBytes);
     
     for (size_t i = 0; i < numBytes; ++i) {
-        result.push_back(getByte());
+        result.push_back(readEntropyPacket());
     }
     
     return result;
@@ -205,6 +225,10 @@ void SerialEntropySource::flushBuffer() {
         return;
     }
 
+    rxHead = 0;
+    rxTail = 0;
+    packetHead = 0;
+    packetTail = 0;
     discardBuffer.clear();
 #endif
 }
@@ -262,9 +286,18 @@ bool SerialEntropySource::syncToMarker() {
             return false; // Timeout
         }
         
-        uint8_t byte = readByte();
-        if (byte == SYNC_MARKER) {
-            return true; // Found sync marker
+        uint8_t b1 = readByte();
+        if (b1 == SYNC_MARKER_1) {
+            uint8_t b2 = readByte();
+            if (b2 == SYNC_MARKER_2) {
+                // Found 0xAA 0x55, read payload into packetBuffer to lock first packet
+                for (size_t i = 0; i < CHUNK_PAYLOAD_SIZE; ++i) {
+                    packetBuffer[i] = whitenByte(readByte());
+                }
+                packetHead = 0;
+                packetTail = CHUNK_PAYLOAD_SIZE;
+                return true;
+            }
         }
     }
 #endif
@@ -274,6 +307,11 @@ uint8_t SerialEntropySource::readByte() {
 #if !PQT_HAS_BOOST_ASIO
     throw EntropyException("Serial entropy source unavailable in this build");
 #else
+    // If we have buffered bytes available in user space, return immediately
+    if (rxHead < rxTail) {
+        return rxBuffer[rxHead++];
+    }
+
     if (!serialPort.is_open()) {
         available.store(false);
         initialized.store(false);
@@ -291,14 +329,15 @@ uint8_t SerialEntropySource::readByte() {
     }
 #endif
     
-    uint8_t byte = 0;
+    rxHead = 0;
+    rxTail = 0;
     boost::system::error_code read_ec;
     size_t bytesRead = 0;
     
     try {
         ioContext.restart();
 
-        serialPort.async_read_some(boost::asio::buffer(&byte, 1),
+        serialPort.async_read_some(boost::asio::buffer(rxBuffer.data(), rxBuffer.size()),
             [&](const boost::system::error_code& ec, size_t n) {
                 read_ec = ec;
                 bytesRead = n;
@@ -311,7 +350,7 @@ uint8_t SerialEntropySource::readByte() {
         throw EntropyException(std::string("Exception during read: ") + e.what());
     }
     
-    if (bytesRead != 1) {
+    if (bytesRead == 0) {
         try { 
             boost::system::error_code cancel_ec;
             serialPort.cancel(cancel_ec); 
@@ -328,7 +367,12 @@ uint8_t SerialEntropySource::readByte() {
         throw EntropyException("Failed to read from serial port: " + read_ec.message());
     }
     
-    return byte;
+    lastByteReceivedTimeMs.store(std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::steady_clock::now().time_since_epoch()
+    ).count());
+    
+    rxTail = bytesRead;
+    return rxBuffer[rxHead++];
 #endif
 }
 
@@ -336,33 +380,74 @@ uint8_t SerialEntropySource::readEntropyPacket() {
 #if !PQT_HAS_BOOST_ASIO
     throw EntropyException("Serial entropy source unavailable in this build");
 #else
+    // If we have cached whitened bytes from the current chunk, return immediately
+    if (packetHead < packetTail) {
+        bytesGenerated++;
+        return packetBuffer[packetHead++];
+    }
+
     const unsigned int startTime = static_cast<unsigned int>(
         std::chrono::duration_cast<std::chrono::milliseconds>(
             std::chrono::steady_clock::now().time_since_epoch()
         ).count()
     );
-    
-    // First, find sync marker
+
+    // Synchronize to next [0xAA][0x55] frame
     while (true) {
         const unsigned int currentTime = static_cast<unsigned int>(
             std::chrono::duration_cast<std::chrono::milliseconds>(
                 std::chrono::steady_clock::now().time_since_epoch()
             ).count()
         );
-        
+
         if (currentTime - startTime > timeoutMs) {
-            available = false;
-            initialized = false;
-            throw EntropyException("Timeout waiting for sync marker");
+            available.store(false);
+            initialized.store(false);
+            throw EntropyException("Timeout waiting for packet sync header [0xAA][0x55]");
         }
-        
-        uint8_t byte = readByte();
-        if (byte == SYNC_MARKER) {
-            // Found sync marker, now read the entropy byte
-            uint8_t entropyByte = readByte();
-            bytesGenerated++;
-            return entropyByte;
+
+        uint8_t b1 = readByte();
+        if (b1 == SYNC_MARKER_1) {
+            uint8_t b2 = readByte();
+            if (b2 == SYNC_MARKER_2) {
+                // Locked frame sync: read full 64-byte payload
+                for (size_t i = 0; i < CHUNK_PAYLOAD_SIZE; ++i) {
+                    uint8_t rawByte = readByte();
+                    packetBuffer[i] = whitenByte(rawByte);
+                }
+                packetHead = 0;
+                packetTail = CHUNK_PAYLOAD_SIZE;
+                bytesGenerated++;
+                return packetBuffer[packetHead++];
+            }
+            // If b2 was also 0xAA, check next byte in case it is 0x55
+            if (b2 == SYNC_MARKER_1) {
+                uint8_t b3 = readByte();
+                if (b3 == SYNC_MARKER_2) {
+                    for (size_t i = 0; i < CHUNK_PAYLOAD_SIZE; ++i) {
+                        uint8_t rawByte = readByte();
+                        packetBuffer[i] = whitenByte(rawByte);
+                    }
+                    packetHead = 0;
+                    packetTail = CHUNK_PAYLOAD_SIZE;
+                    bytesGenerated++;
+                    return packetBuffer[packetHead++];
+                }
+            }
         }
     }
 #endif
+}
+
+uint8_t SerialEntropySource::whitenByte(uint8_t rawByte) {
+    uint8_t mask = 0;
+    for (int i = 0; i < 8; ++i) {
+        uint32_t lsb = lfsrState & 1;
+        lfsrState >>= 1;
+        if (lsb) {
+            lfsrState ^= LFSR_POLYNOMIAL;
+        }
+        mask = static_cast<uint8_t>((mask << 1) | lsb);
+    }
+    return static_cast<uint8_t>(rawByte ^ mask);
 }

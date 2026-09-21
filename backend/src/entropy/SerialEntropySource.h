@@ -44,7 +44,7 @@ public:
      */
     explicit SerialEntropySource(
         const std::string& port,
-        unsigned int baudRate = 115200,
+        unsigned int baudRate = 921600,
         unsigned int timeoutMs = 1000
     );
 
@@ -189,6 +189,13 @@ private:
     uint8_t readEntropyPacket();
 
     /**
+     * @brief Apply 32-bit Galois LFSR whitening to a raw entropy byte
+     * @param rawByte Raw byte received from hardware
+     * @return uint8_t Whitened entropy byte
+     */
+    uint8_t whitenByte(uint8_t rawByte);
+
+    /**
      * @brief Write data to the serial port (for possible future commands)
      * @param data Data to write
      * @throws EntropyException if write fails
@@ -216,6 +223,12 @@ private:
     mutable std::atomic<bool> initialized;
     mutable std::atomic<bool> available;
     std::atomic<size_t> bytesGenerated;
+    mutable std::atomic<int64_t> lastByteReceivedTimeMs{0};
+
+    // 32-bit Galois LFSR whitening state (taps 32, 22, 2, 1)
+    uint32_t lfsrState;
+    static constexpr uint32_t LFSR_POLYNOMIAL = 0x80200003u;
+    static constexpr uint32_t LFSR_INITIAL_SEED = 0xACE1u;
 
     // Thread safety
     mutable std::mutex mutex;
@@ -226,9 +239,22 @@ private:
     boost::system::error_code errorCode;
 #endif
 
-    // Constants
-    static constexpr uint8_t SYNC_MARKER = 0xAA;
-    static constexpr size_t PACKET_SIZE = 2; // [0xAA][Random Byte]
+    // Internal receive buffer for high-throughput batched reads
+    static constexpr size_t RX_BUFFER_SIZE = 2048;
+    std::array<uint8_t, RX_BUFFER_SIZE> rxBuffer{};
+    size_t rxHead = 0;
+    size_t rxTail = 0;
+
+    // 64-byte Chunked Protocol Framing
+    static constexpr uint8_t SYNC_MARKER_1 = 0xAA;
+    static constexpr uint8_t SYNC_MARKER_2 = 0x55;
+    static constexpr size_t CHUNK_PAYLOAD_SIZE = 64;
+    static constexpr size_t PACKET_SIZE = 66; // [0xAA][0x55][64 Bytes Payload]
     static constexpr unsigned int DEFAULT_TIMEOUT_MS = 1000;
     static constexpr unsigned int SYNC_TIMEOUT_MS = 1000;
+
+    // Whitened packet chunk buffer
+    std::array<uint8_t, CHUNK_PAYLOAD_SIZE> packetBuffer{};
+    size_t packetHead = 0;
+    size_t packetTail = 0;
 };

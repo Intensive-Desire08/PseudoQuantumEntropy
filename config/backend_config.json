@@ -1,7 +1,7 @@
 {
     "serial": {
         "port": "COM3",
-        "baud_rate": 115200,
+        "baud_rate": 921600,
         "timeout_ms": 5000
     },
     "entropy": {
