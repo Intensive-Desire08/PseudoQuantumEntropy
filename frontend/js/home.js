@@ -148,7 +148,18 @@ window.PQEPollController = window.PQEPollController || {
 
         // Update metric values
         const metricStatus = document.getElementById('metric-status');
-        if (metricStatus) metricStatus.textContent = result?.status || 'Online';
+        if (metricStatus) {
+          if (entropy.source_type === 'hardware') {
+            metricStatus.textContent = 'Active';
+            metricStatus.className = 'metric-value highlight-green';
+          } else if (entropy.source_type === 'openssl') {
+            metricStatus.textContent = 'Fallback';
+            metricStatus.className = 'metric-value highlight-yellow';
+          } else {
+            metricStatus.textContent = result?.status || 'Online';
+            metricStatus.className = 'metric-value highlight-cyan';
+          }
+        }
 
         const metricHardware = document.getElementById('metric-hardware');
         if (metricHardware) {
@@ -168,6 +179,7 @@ window.PQEPollController = window.PQEPollController || {
           metricPool.textContent = `${entropy.pool_size ?? 0} bytes`;
         }
 
+        const currentBytes = entropy.total_generated || 0;
         const currentSourceType = entropy.source_type || 'unknown';
         const currentTime = Date.now();
         if (lastSourceType !== null && lastSourceType !== currentSourceType) {
@@ -177,12 +189,15 @@ window.PQEPollController = window.PQEPollController || {
         lastSourceType = currentSourceType;
         lastWhitening = (entropy.whitening || 'lfsr').toLowerCase();
 
-        const currentBytes = entropy.total_generated || 0;
         let speedStr = 'Calculating...';
 
         if (entropy.speed !== undefined && entropy.speed > 0) {
           const speedKB = entropy.speed / 1024;
-          speedStr = `${speedKB.toFixed(1)} KB/s`;
+          if (speedKB >= 1024) {
+            speedStr = `${(speedKB / 1024).toFixed(1)} MB/s`;
+          } else {
+            speedStr = `${speedKB.toFixed(1)} KB/s`;
+          }
         } else if (entropy.speed !== undefined && entropy.speed === 0) {
           speedStr = '0.0 KB/s';
           lastBytes = currentBytes;
@@ -194,7 +209,11 @@ window.PQEPollController = window.PQEPollController || {
             if (timeDiffSec > 0) {
               const bytesDiff = currentBytes - lastBytes;
               const speedKB = (bytesDiff / timeDiffSec) / 1024;
-              speedStr = `${speedKB.toFixed(1)} KB/s`;
+              if (speedKB >= 1024) {
+                speedStr = `${(speedKB / 1024).toFixed(1)} MB/s`;
+              } else {
+                speedStr = `${speedKB.toFixed(1)} KB/s`;
+              }
             }
           }
           lastBytes = currentBytes;
@@ -238,9 +257,10 @@ window.PQEPollController = window.PQEPollController || {
         if (rawJsonEl) rawJsonEl.textContent = JSON.stringify(result, null, 2);
 
       } catch (error) {
+        console.error('[home.js] updateStatus error:', error);
         const metricStatus = document.getElementById('metric-status');
         if (metricStatus) {
-          metricStatus.textContent = 'Error';
+          metricStatus.textContent = 'Disconnected';
           metricStatus.className = 'metric-value highlight-yellow';
         }
         const statusPanel = document.querySelector('[data-status-panel]');
