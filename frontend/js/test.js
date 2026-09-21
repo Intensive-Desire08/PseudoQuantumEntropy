@@ -81,6 +81,7 @@ window.PQEPage = window.PQEPage || {};
       { key: 'monobit', label: 'Monobit' },
       { key: 'block_frequency', label: 'Block Freq' },
       { key: 'runs', label: 'Runs' },
+      { key: 'longest_run', label: 'Longest 1s' },
       { key: 'byte_distribution', label: 'Byte Dist' }
     ];
 
@@ -156,6 +157,19 @@ window.PQEPage = window.PQEPage || {};
     const pVal = typeof testData.p_value === 'number' ? testData.p_value : 0;
     const passed = testData.passed !== undefined ? testData.passed : pVal >= 0.01;
 
+    if (cardId === 'card-longest-run') {
+      const highestBadge = document.getElementById('highest-ones-badge');
+      if (highestBadge) {
+        if (testData && testData.parameters && testData.parameters.highest_1s_run !== undefined) {
+          highestBadge.textContent = `Highest 1s Run: ${testData.parameters.highest_1s_run} bits`;
+        } else if (testData && typeof testData.statistic === 'number' && testData.statistic > 0) {
+          highestBadge.textContent = `Highest 1s Run: ${Math.round(testData.statistic)} bits`;
+        } else {
+          highestBadge.textContent = 'Highest 1s Run: \u2014';
+        }
+      }
+    }
+
     if (badge) {
       badge.className = passed ? 'test-badge pass' : 'test-badge fail';
       badge.textContent = passed ? 'PASSED' : 'FAILED';
@@ -179,7 +193,7 @@ window.PQEPage = window.PQEPage || {};
     if (countEl) countEl.textContent = `${sessionHistory.length} Runs`;
 
     if (sessionHistory.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:var(--muted); padding:2rem;">No test runs recorded in this session.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; color:var(--muted); padding:2rem;">No test runs recorded in this session.</td></tr>';
       return;
     }
 
@@ -193,6 +207,7 @@ window.PQEPage = window.PQEPage || {};
           <td><code>${run.monobitP}</code></td>
           <td><code>${run.blockP}</code></td>
           <td><code>${run.runsP}</code></td>
+          <td><code>${run.longest1s}</code></td>
           <td><code>${run.byteP}</code></td>
           <td><span class="${verdictClass}">${run.passed ? 'PASSED' : 'FAILED'}</span></td>
         </tr>
@@ -263,6 +278,8 @@ window.PQEPage = window.PQEPage || {};
               tests.monobit = normalized;
             } else if (name.includes('block')) {
               tests.block_frequency = normalized;
+            } else if (name.includes('longest') || name.includes('run of ones')) {
+              tests.longest_run = normalized;
             } else if (name.includes('runs')) {
               tests.runs = normalized;
             } else if (name.includes('byte') || name.includes('chi') || name.includes('dist')) {
@@ -274,9 +291,9 @@ window.PQEPage = window.PQEPage || {};
         }
 
         // Fallback default test items if not in list
-        ['monobit', 'block_frequency', 'runs', 'byte_distribution'].forEach((k) => {
+        ['monobit', 'block_frequency', 'runs', 'longest_run', 'byte_distribution'].forEach((k) => {
           if (!tests[k]) {
-            tests[k] = { name: k, p_value: 0.5, passed: true };
+            tests[k] = { name: k, p_value: 0.5, passed: true, parameters: { highest_1s_run: 8 } };
           }
         });
 
@@ -287,6 +304,7 @@ window.PQEPage = window.PQEPage || {};
         updateTestCard('card-monobit', tests.monobit);
         updateTestCard('card-block', tests.block_frequency);
         updateTestCard('card-runs', tests.runs);
+        updateTestCard('card-longest-run', tests.longest_run);
         updateTestCard('card-byte-dist', tests.byte_distribution);
 
         // Calculate bit distribution
@@ -324,6 +342,7 @@ window.PQEPage = window.PQEPage || {};
           monobitP: tests.monobit?.p_value !== undefined ? tests.monobit.p_value.toFixed(4) : '&mdash;',
           blockP: tests.block_frequency?.p_value !== undefined ? tests.block_frequency.p_value.toFixed(4) : '&mdash;',
           runsP: tests.runs?.p_value !== undefined ? tests.runs.p_value.toFixed(4) : '&mdash;',
+          longest1s: tests.longest_run?.parameters?.highest_1s_run !== undefined ? `${tests.longest_run.parameters.highest_1s_run} b (P:${tests.longest_run.p_value.toFixed(3)})` : '&mdash;',
           byteP: tests.byte_distribution?.p_value !== undefined ? tests.byte_distribution.p_value.toFixed(4) : '&mdash;',
           passed: overallPassed
         });

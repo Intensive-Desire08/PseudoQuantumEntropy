@@ -53,7 +53,7 @@
           <h1>System Status</h1>
           <p>
             Real-time telemetry and hardware-backed entropy generation powered by dual-photodiode
-            quantum shot noise, differential ADC sampling, and Von Neumann debiasing.
+            quantum shot noise, differential ADC sampling, and backend LFSR polynomial whitening.
           </p>
         </div>
 
@@ -130,9 +130,9 @@
                     <span class="pipeline-index">STAGE 04</span>
                     <span class="pipeline-state" data-step-state>STANDBY</span>
                   </div>
-                  <strong>Von Neumann Filter</strong>
-                  <p>Whitens bias in firmware: 01&rarr;0, 10&rarr;1; equal bit pairs (00, 11) discarded.</p>
-                  <small data-step-detail>Uniform bit distribution</small>
+                  <strong>Backend LFSR Whitening</strong>
+                  <p>32-bit Galois LFSR polynomial XOR whitening in C++ backend to eliminate MCU firmware overhead.</p>
+                  <small data-step-detail>Taps: 32,31,29,1,0 (0x80000057)</small>
                 </article>
 
                 <article class="pipeline-step" data-pipeline-step="pool">
@@ -417,7 +417,7 @@
           <h1>Entropy Test</h1>
           <p>
             Rigorous statistical randomness validation suite powered by Python scipy/numpy executing
-            NIST SP 800-22 tests: Monobit, Block Frequency, Runs, and Chi-Square Byte Distribution.
+            5 NIST SP 800-22 tests: Monobit Frequency, Block Frequency, Runs, Longest Run of Ones (Highest 1s Run), and Chi-Square Byte Distribution.
           </p>
         </div>
 
@@ -453,7 +453,7 @@
           <div id="entropy-status" class="alert-banner">Ready.</div>
         </div>
 
-        <!-- 4 Test Metric Cards with P-Value Gauges -->
+        <!-- 5 Test Metric Cards with P-Value Gauges -->
         <div class="test-cards-grid" id="nist-test-cards">
           <div class="test-card" id="card-monobit">
             <div class="test-card-top">
@@ -494,9 +494,22 @@
             <small><span>P-Value: &mdash;</span><span>Threshold: &alpha; &ge; 0.01</span></small>
           </div>
 
-          <div class="test-card" id="card-byte-dist">
+          <div class="test-card" id="card-longest-run">
             <div class="test-card-top">
               <span class="pipeline-index">NIST TEST 04</span>
+              <span class="test-badge pending">PENDING</span>
+            </div>
+            <strong>Longest Run of Ones</strong>
+            <p>Tests cluster irregularities in blocks. <span id="highest-ones-badge" style="color:var(--accent); font-weight:700; display:block; margin-top:2px;">Highest 1s Run: &mdash;</span></p>
+            <div class="p-value-meter">
+              <div class="p-value-fill" style="width: 0%;"></div>
+            </div>
+            <small><span>P-Value: &mdash;</span><span>Threshold: &alpha; &ge; 0.01</span></small>
+          </div>
+
+          <div class="test-card" id="card-byte-dist">
+            <div class="test-card-top">
+              <span class="pipeline-index">NIST TEST 05</span>
               <span class="test-badge pending">PENDING</span>
             </div>
             <strong>Chi-Square Byte Dist</strong>
@@ -549,13 +562,14 @@
                   <th>Monobit P</th>
                   <th>Block P</th>
                   <th>Runs P</th>
+                  <th>Longest 1s</th>
                   <th>Chi-Sq P</th>
                   <th>Verdict</th>
                 </tr>
               </thead>
               <tbody id="test-history-table">
                 <tr>
-                  <td colspan="8" style="text-align: center; color: var(--muted); padding: 2rem;">
+                  <td colspan="9" style="text-align: center; color: var(--muted); padding: 2rem;">
                     No test runs recorded in this session. Run an entropy test above.
                   </td>
                 </tr>
@@ -668,16 +682,17 @@
 
           <div class="arch-card">
             <span class="section-tag">ALGORITHMIC LAYER</span>
-            <h3>Von Neumann Whitening &amp; Debiasing</h3>
+            <h3>Backend LFSR Whitening &amp; Processing</h3>
             <p>
-              Raw ADC least significant bits (LSBs) can exhibit slight physical bias toward 0 or 1.
-              Von Neumann's algorithm eliminates all first-order bias at the cost of variable throughput:
+              To minimize microcontroller compute overhead and avoid discarding bits in MCU firmware,
+              the ESP32 streams raw digitized noise packets (<code>[0xAA][0x55]</code> + 64-byte payload).
+              Whitening is executed entirely within the C++ backend:
             </p>
             <ul>
-              <li><strong>Bit Pair '01':</strong> Emits clean bit <code>0</code></li>
-              <li><strong>Bit Pair '10':</strong> Emits clean bit <code>1</code></li>
-              <li><strong>Bit Pairs '00' &amp; '11':</strong> Discarded entirely</li>
-              <li><strong>Output:</strong> A perfectly balanced 50/50 bit stream transmitted over serial framed as <code>[0xAA][byte]</code>.</li>
+              <li><strong>Galois LFSR:</strong> 32-bit linear feedback shift register using primitive polynomial (taps at 32, 31, 29, 1, 0; <code>0x80000057</code>).</li>
+              <li><strong>Byte Whitening:</strong> Each raw byte is XORed with a dynamically clocked LFSR state mask (<code>rawByte ^ mask</code>).</li>
+              <li><strong>Zero MCU Overhead:</strong> Firmware throughput is maximized with constant baud rate and predictable chunk sizing.</li>
+              <li><strong>Source Agnostic:</strong> Whitened hardware entropy and OpenSSL fallback entropy both feed the thread-safe collector pool.</li>
             </ul>
           </div>
 

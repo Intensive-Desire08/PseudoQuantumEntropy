@@ -141,6 +141,7 @@ def generate_quick_tests(data: bytes) -> List[Dict[str, Any]]:
         monobit_frequency_test(bits),
         block_frequency_test(bits, block_size=128),
         runs_test(bits),
+        longest_run_of_ones_test(bits),
         byte_distribution_test(data),
     ]
     return tests
@@ -225,23 +226,88 @@ def _cumulative_sums_test(bits: np.ndarray) -> Dict[str, Any]:
     )
 
 
-def _longest_run_test(bits: np.ndarray) -> Dict[str, Any]:
-    if bits.size < 128:
-        return _make_result("Longest Run of Ones in a Block", None, None, False, skipped=True,
-                            message="Insufficient bits")
+def _max_run_of_ones(arr: np.ndarray) -> int:
+    max_run = 0
+    cur_run = 0
+    for b in arr:
+        if b == 1:
+            cur_run += 1
+            if cur_run > max_run:
+                max_run = cur_run
+        else:
+            cur_run = 0
+    return max_run
 
-    block_size = 128
-    blocks = bits[: len(bits) - (len(bits) % block_size)].reshape(-1, block_size)
-    longest = np.max([np.max(np.diff(np.where(np.diff(np.r_[0, block], prepend=0) != 0)[0])) for block in blocks]) if blocks.size else 0
-    p_value = stats.norm.sf(float(longest))
+
+def longest_run_of_ones_test(bits: np.ndarray) -> Dict[str, Any]:
+    n = bits.size
+    if n < 128:
+        return _make_result("Longest Run of Ones in a Block", None, None, False, skipped=True,
+                            message="Insufficient bits (need >= 128)")
+
+    highest_1s_run = _max_run_of_ones(bits)
+
+    if n < 6272:
+        # NIST SP 800-22 Section 2.4: M = 8, K = 3 (classes: <=1, 2, 3, >=4)
+        M = 8
+        K = 3
+        pi = np.array([0.2148, 0.3672, 0.2305, 0.1875])
+        N = n // M
+        blocks = bits[: N * M].reshape(N, M)
+        v = np.zeros(4, dtype=np.int64)
+        for block in blocks:
+            max_b = _max_run_of_ones(block)
+            if max_b <= 1:
+                v[0] += 1
+            elif max_b == 2:
+                v[1] += 1
+            elif max_b == 3:
+                v[2] += 1
+            else:
+                v[3] += 1
+    else:
+        # NIST SP 800-22 Section 2.4: M = 128, K = 5 (classes: <=4, 5, 6, 7, 8, >=9)
+        M = 128
+        K = 5
+        pi = np.array([0.1174, 0.2430, 0.2493, 0.1752, 0.1027, 0.1124])
+        N = n // M
+        blocks = bits[: N * M].reshape(N, M)
+        v = np.zeros(6, dtype=np.int64)
+        for block in blocks:
+            max_b = _max_run_of_ones(block)
+            if max_b <= 4:
+                v[0] += 1
+            elif max_b == 5:
+                v[1] += 1
+            elif max_b == 6:
+                v[2] += 1
+            elif max_b == 7:
+                v[3] += 1
+            elif max_b == 8:
+                v[4] += 1
+            else:
+                v[5] += 1
+
+    expected = N * pi
+    chi_sq = float(np.sum(((v - expected) ** 2) / expected))
+    p_value = float(stats.chi2.sf(chi_sq, K))
 
     return _make_result(
         "Longest Run of Ones in a Block",
         _safe_p_value(p_value),
-        float(longest),
+        float(highest_1s_run),
         _pass_threshold(p_value),
-        {"block_size": block_size},
+        {
+            "block_size": int(M),
+            "num_blocks": int(N),
+            "highest_1s_run": int(highest_1s_run),
+            "chi_sq": round(chi_sq, 4),
+        },
     )
+
+
+def _longest_run_test(bits: np.ndarray) -> Dict[str, Any]:
+    return longest_run_of_ones_test(bits)
 
 
 def generate_full_tests(data: bytes) -> List[Dict[str, Any]]:
@@ -250,7 +316,7 @@ def generate_full_tests(data: bytes) -> List[Dict[str, Any]]:
         monobit_frequency_test(bits),
         block_frequency_test(bits, block_size=128),
         runs_test(bits),
-        _longest_run_test(bits),
+        longest_run_of_ones_test(bits),
         _cumulative_sums_test(bits),
         _approximate_entropy_test(bits, m=10),
         _serial_test(bits, m=16),

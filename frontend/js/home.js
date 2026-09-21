@@ -302,12 +302,12 @@ window.PQEPage = window.PQEPage || {};
 
           // Animate Stage 04
           setPipelineStep('lsb', 'complete', 'LSBs isolated');
-          setPipelineStep('whitening', 'active', 'Von Neumann debiasing (01->0, 10->1)...');
-          if (telemetry) telemetry.textContent = `[Whitening] Equal pairs discarded; bias reduced to 0.00%.`;
+          setPipelineStep('whitening', 'active', 'Backend LFSR polynomial XOR whitening...');
+          if (telemetry) telemetry.textContent = `[LFSR Whitening] C++ backend whitened raw ADC stream (Galois polynomial 0x80000057).`;
           await new Promise((r) => setTimeout(r, 60));
 
           // Animate Stage 05 & Call API
-          setPipelineStep('whitening', 'complete', 'Debiased stream framed');
+          setPipelineStep('whitening', 'complete', 'LFSR whitened');
           setPipelineStep('pool', 'active', 'Querying thread-safe entropy buffer...');
 
           const entropyResponse = await window.PQEApi.getEntropy(count);
